@@ -1,0 +1,114 @@
+// prisma/schema.prisma
+
+generator client {
+  provider        = "prisma-client-js"
+  output          = "../generated/prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id            String         @id @default(uuid())
+  username      String         @unique
+  displayName   String
+  password      String
+  bio           String?
+  avatarUrl     String?
+  createdAt     DateTime       @default(now())
+  
+  // Relations
+  chelfies      Chelfie[]
+  likes         Like[]
+  comments      Comment[]
+  
+  // Follow System
+  followers     Follow[]       @relation("following")
+  following     Follow[]       @relation("follower")
+
+  // Chat System
+  messages      Message[]
+  conversations ConversationParticipant[]
+}
+
+model Chelfie {
+  id          String    @id @default(uuid())
+  url         String
+  caption     String?
+  isPinned    Boolean   @default(false) // For those special videos/photos
+  createdAt   DateTime  @default(now())
+  
+  // Relations
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  likes       Like[]
+  comments    Comment[]
+}
+
+model Follow {
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+
+  follower    User     @relation("follower", fields: [followerId], references: [id])
+  following   User     @relation("following", fields: [followingId], references: [id])
+
+  @@id([followerId, followingId])
+}
+
+model Like {
+  userId    String
+  chelfieId String
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+  chelfie   Chelfie  @relation(fields: [chelfieId], references: [id])
+
+  @@id([userId, chelfieId])
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  content   String
+  createdAt DateTime @default(now())
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  chelfieId String
+  chelfie   Chelfie  @relation(fields: [chelfieId], references: [id])
+}
+
+// --- NEW CHAT SYSTEM ---
+
+model Conversation {
+  id          String   @id @default(uuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  messages     Message[]
+  participants ConversationParticipant[]
+}
+
+model ConversationParticipant {
+  id             String       @id @default(uuid())
+  conversationId String
+  userId         String
+  
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  user           User         @relation(fields: [userId], references: [id])
+
+  @@unique([conversationId, userId])
+}
+
+model Message {
+  id             String       @id @default(uuid())
+  content        String
+  createdAt      DateTime     @default(now())
+  
+  senderId       String
+  sender         User         @relation(fields: [senderId], references: [id])
+  
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+}
