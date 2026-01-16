@@ -4,8 +4,12 @@ import swaggerJsdoc from 'swagger-jsdoc';
 import { authenticateToken } from './middleware/authMiddleware';
 import { login } from './controllers/authController';
 import { getConversation, sendMessage } from "./controllers/chatController";
+import multer from "multer";
+import { createPost, getFeed } from "./controllers/feedController";
+import path from 'path';
 
 const app = express();
+const upload = multer({ dest: 'uploads/' }); // Images will be saved here
 app.use(express.json());
 
 // 1. Swagger Definition
@@ -41,8 +45,17 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Auth Route
 app.post('/api/auth/login', login);
+
+// Chat Routes
 app.get('/api/chat/conversations', authenticateToken, getConversation);
 app.post('/api/chat/messages', authenticateToken, sendMessage);
+
+// IMPORTANT: This allows your browser to see the images via URL
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
+// Routes
+app.post('/api/posts', authenticateToken, upload.single('image'), createPost);
+app.get('/api/posts', authenticateToken, getFeed);
 
 const PORT = 3001;
 app.listen(PORT, () => {
