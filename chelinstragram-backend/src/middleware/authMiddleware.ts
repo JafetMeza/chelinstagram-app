@@ -22,10 +22,6 @@ export const authenticateToken = (req: AuthRequest, res: Response, next: NextFun
     const authHeader = req.headers['authorization'];
     let JWT_SECRET = process.env.JWT_SECRET || "";
 
-    // DEBUG LOGS
-    console.log('--- AUTH ATTEMPT ---');
-    console.log('Header:', authHeader);
-
     if (!authHeader) {
         console.log('Error: No header found');
         return res.status(401).json({ error: 'No token provided' });

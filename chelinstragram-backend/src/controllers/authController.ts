@@ -19,7 +19,7 @@ import { prisma } from '../../prisma/database';
  *            properties:
  *              username:
  *                type: string
- *                example: graciela2aa
+ *                example: testUser
  *              password:
  *                type: string
  *                example: password123

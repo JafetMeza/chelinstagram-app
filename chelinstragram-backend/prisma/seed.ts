@@ -41,10 +41,10 @@ async function main() {
     });
 
     const testUser = await prisma.user.upsert({
-        where: { username: 'TestUser' },
+        where: { username: 'testUser' },
         update: {},
         create: {
-            username: 'TestUser',
+            username: 'testUser',
             displayName: 'Beta Tester',
             password: hashedPassword,
             bio: 'Testing features and functionality.',

@@ -7,6 +7,7 @@ import { getConversation, sendMessage } from "./controllers/chatController";
 import multer from "multer";
 import { createPost, getFeed } from "./controllers/feedController";
 import path from 'path';
+import { addComment, getCommentsByPost, toggleLike } from "./controllers/interactionController";
 
 const app = express();
 const upload = multer({ dest: 'uploads/' }); // Images will be saved here
@@ -56,6 +57,11 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 // Routes
 app.post('/api/posts', authenticateToken, upload.single('image'), createPost);
 app.get('/api/posts', authenticateToken, getFeed);
+
+// Protected Interaction Routes
+app.post('/api/interactions/like', authenticateToken, toggleLike);
+app.post('/api/interactions/comment', authenticateToken, addComment);
+app.get('/api/interactions/comments/:postId', authenticateToken, getCommentsByPost);
 
 const PORT = 3001;
 app.listen(PORT, () => {
