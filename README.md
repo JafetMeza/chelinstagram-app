@@ -4,20 +4,20 @@
 
 ## 🚀 Key Features
 
-- **The "Chelfie" Feed:** A curated feed of photos and videos (Chelfies) from followed users.
-- **Upload Chelfie?:** A custom media upload flow supporting high-quality images and video via Cloudinary.
-- **Personalized Profiles:** Support for Display Names, Professional Bios, and profile customization.
-- **Pinned Content:** Ability to pin important "Chelfies" to the top of a profile for onboarding or storytelling.
-- **Social Interaction:** Real-time-ready architecture for likes and comments.
-- **Coming Soon:** Integrated real-time chat functionality.
+- **The "Chelfie" Feed:** A curated feed of photos from followed users, filtered to keep your circle private.
+- **Upload Chelfie:** A custom media upload flow supporting high-quality images with location tagging and "Wageningen" metadata.
+- **Personalized Profiles:** Custom avatars, professional bios, and real-time follower/following statistics.
+- **Pinned Content:** A priority system that keeps special memories at the top of the feed for storytelling.
+- **Social Interaction:** Full support for likes, nested comments, and discovery via user search.
+- **Direct Messaging:** A complete chat system with conversation threading and last-message previews.
 
 ## 🛠 Tech Stack
 
-- **Frontend:** React, TypeScript, TailwindCSS
+- **Frontend:** React, TypeScript, TailwindCSS (Development Pending)
 - **Backend:** Node.js, Express, TypeScript
 - **Database:** PostgreSQL
 - **ORM:** Prisma
-- **Media Storage:** Cloudinary (CDN-backed image/video delivery)
+- **Media Storage:** Local Filesystem (Multer) / Configurable for Cloudinary
 - **Authentication:** JWT-based secure authentication
 
 ## 🏗 System Architecture

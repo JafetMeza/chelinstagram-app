@@ -23,3 +23,9 @@ Thumbs.db
 npm-debug.log*
 yarn-debug.log*
 /generated/prisma
+
+# Ignore all files in the uploads folder
+/uploads/*
+
+# But don't ignore the .gitkeep file so the folder exists in the repo
+!/uploads/.gitkeep

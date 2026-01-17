@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "CommonJS",
+    "lib": [
+      "ES2022"
+    ],
+    "rootDir": "./",
+    "outDir": "./dist",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "sourceMap": true
+  },
+  "include": [
+    "src/**/*",
+    "prisma/seed.ts",
+    "prisma/prisma.config.ts" /* TypeScript now knows where to look */
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
+}
