@@ -10,11 +10,14 @@ import path from 'path';
 import { addComment, getCommentsByPost, toggleLike } from "./controllers/interactionController";
 import { getProfile, getUserById, searchUsers, updateProfile, toggleFollow } from "./controllers/userController";
 import cors from 'cors';
+import { authSchemas } from "./schemas/auth.schema";
+import { userSchemas } from "./schemas/user.schema";
+import { chatSchemas } from "./schemas/chat.schema";
+import { feedSchemas } from "./schemas/feed.schema";
+import { interactionSchemas } from "./schemas/interaction.schema";
 
 const corsOptions = {
-    origin: 'http://localhost:3000', // Allow only your frontend
-    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'PUT'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    origin: 'http://localhost:3000',
     credentials: true, // Useful if you ever switch to cookies for Auth
 };
 
@@ -39,6 +42,7 @@ const upload = multer({ storage: storage });
 app.use(cors(corsOptions));
 
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // 1. Swagger Definition
 const swaggerOptions = {
@@ -62,14 +66,31 @@ const swaggerOptions = {
                     bearerFormat: 'JWT',
                 },
             },
+            schemas: {
+                ...userSchemas,
+                ...authSchemas,
+                ...chatSchemas,
+                ...feedSchemas,
+                ...interactionSchemas
+            }
         },
     },
     // Path to the API docs (where your JSDoc comments are)
     apis: ['./src/controllers/*.ts'],
 };
 
+app.use((req, res, next) => {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+    if (req.method === 'POST') console.log('Body Payload:', req.body);
+    next();
+});
+
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.get('/api-docs-json', (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.send(swaggerSpec);
+});
 
 // Auth Route
 app.post('/api/auth/login', login);

@@ -12,8 +12,12 @@ import { AuthRequest } from '../middleware/authMiddleware';
  *    security:
  *      - bearerAuth: []
  *    responses:
- *      200:
+ *      '200':
  *        description: User profile data
+ *        content:
+ *          application/json:
+ *            schema:
+ *              $ref: '#/components/schemas/UserProfile'
  *  patch:
  *    summary: Update profile details and avatar
  *    tags:
@@ -24,18 +28,10 @@ import { AuthRequest } from '../middleware/authMiddleware';
  *      content:
  *        multipart/form-data:
  *          schema:
- *            type: object
- *            properties:
- *              displayName:
- *                type: string
- *              bio:
- *                type: string
- *              avatar:
- *                type: string
- *                format: binary
+ *            $ref: '#/components/schemas/UpdateProfileRequest'
  *    responses:
- *      200:
- *        description: Profile updated successfully 
+ *      '200':
+ *        description: Profile updated successfully
  */
 
 export const getProfile = async (req: AuthRequest, res: Response) => {
@@ -99,23 +95,14 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
  *          type: string
  *        description: Name or username to search for
  *    responses:
- *      200:
+ *      '200':
  *        description: List of matching users
  *        content:
  *          application/json:
  *            schema:
  *              type: array
  *              items:
- *                type: object
- *                properties:
- *                  id:
- *                    type: string
- *                  username:
- *                    type: string
- *                  displayName:
- *                    type: string
- *                  avatarUrl:
- *                    type: string
+ *                $ref: '#/components/schemas/SearchUser'
  */
 export const searchUsers = async (req: AuthRequest, res: Response) => {
     const { query } = req.query; // Get search term from URL: ?query=chela
@@ -170,31 +157,12 @@ export const searchUsers = async (req: AuthRequest, res: Response) => {
  *        schema:
  *          type: string
  *    responses:
- *      200:
+ *      '200':
  *        description: User profile with posts and stats
  *        content:
  *          application/json:
  *            schema:
- *              type: object
- *              properties:
- *                username:
- *                  type: string
- *                _count:
- *                  type: object
- *                  properties:
- *                    followers:
- *                      type: integer
- *                    following:
- *                      type: integer
- *                    posts:
- *                      type: integer
- *                posts:
- *                  type: array
- *                  items:
- *                    type: object
- *                    properties:
- *                      imageUrl:
- *                        type: string
+ *              $ref: '#/components/schemas/UserProfile'
  */
 export const getUserById = async (req: AuthRequest, res: Response) => {
     const { userId: targetUserId } = req.params;
@@ -247,16 +215,17 @@ export const getUserById = async (req: AuthRequest, res: Response) => {
  *        application/json:
  *          schema:
  *            type: object
+ *            required:
+ *              - followingId
  *            properties:
  *              followingId:
  *                type: string
- *                description: The ID of the user to follow/unfollow
  *    responses:
- *      200:
+ *      '200':
  *        description: Status updated (Followed or Unfollowed)
- *      400:
+ *      '400':
  *        description: Cannot follow yourself
- *      401:
+ *      '401':
  *        description: Unauthorized
  */
 export const toggleFollow = async (req: AuthRequest, res: Response) => {

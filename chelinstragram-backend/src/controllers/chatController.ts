@@ -18,26 +18,8 @@ import { AuthRequest } from '../middleware/authMiddleware';
  *          application/json:
  *            schema:
  *              type: array
- *              items:
- *                type: object
- *                properties:
- *                  id:
- *                    type: string
- *                  updatedAt:
- *                    type: string
- *                  participants:
- *                    type: array
- *                    items:
- *                      type: object
- *                  messages:
- *                    type: array
- *                    items:
- *                      type: object
- *                      properties:
- *                        content:
- *                          type: string
- *                        createdAt:
- *                          type: string
+ *              items: 
+ *                  $ref: '#/components/schemas/Conversation'
  */
 export const getConversation = async (req: AuthRequest, res: Response) => {
     const { userId } = req.user!;
@@ -94,28 +76,14 @@ export const getConversation = async (req: AuthRequest, res: Response) => {
  *      content:
  *        application/json:
  *          schema:
- *            type: object
- *            properties:
- *              conversationId:
- *                type: string
- *                example: "paste-conversation-id-here"
- *              content:
- *                type: string
- *                example: "Hey Chela, I'm testing the app! ❤️"
+ *            $ref: '#/components/schemas/SendMessageRequest'
  *    responses:
  *      201:
  *        description: Message sent successfully
  *        content:
  *          application/json:
  *            schema:
- *              type: object
- *              properties:
- *                id:
- *                  type: string
- *                content:
- *                  type: string
- *                createdAt:
- *                  type: string
+ *              $ref: '#/components/schemas/Message'
  *      401:
  *        description: Unauthorized
  */
@@ -174,6 +142,12 @@ export const sendMessage = async (req: AuthRequest, res: Response) => {
  *    responses:
  *      200:
  *        description: Conversation object
+ *        content:
+ *          application/json:
+ *            schema:
+ *              type: array
+ *              items: 
+ *                  $ref: '#/components/schemas/Conversation'
  *      500:
  *        description: Error
  */

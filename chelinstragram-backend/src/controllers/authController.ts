@@ -15,31 +15,14 @@ import { prisma } from '../../prisma/database';
  *      content:
  *        application/json:
  *          schema:
- *            type: object
- *            properties:
- *              username:
- *                type: string
- *                example: testUser
- *              password:
- *                type: string
- *                example: password123
+ *            $ref: '#/components/schemas/LoginRequest'
  *    responses:
  *      200:
  *        description: Successful login
  *        content:
  *          application/json:
  *            schema:
- *              type: object
- *              properties:
- *                token:
- *                  type: string
- *                user:
- *                  type: object
- *                  properties:
- *                    id:
- *                      type: string
- *                    username:
- *                      type: string
+ *              $ref: '#/components/schemas/AuthResponse'
  *      401:
  *        description: Invalid credentials
  *        content:
@@ -53,6 +36,8 @@ import { prisma } from '../../prisma/database';
 export const login = async (req: Request, res: Response) => {
     const { username, password } = req.body;
     let JWT_SECRET = process.env.JWT_SECRET || "";
+
+    console.log(username);
 
     try {
         // 1. Find user by username

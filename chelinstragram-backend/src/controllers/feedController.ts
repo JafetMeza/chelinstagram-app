@@ -16,38 +16,14 @@ import { AuthRequest } from '../middleware/authMiddleware';
  *      content:
  *        multipart/form-data:
  *          schema:
- *            type: object
- *            properties:
- *              caption:
- *                type: string
- *                example: "A beautiful day in Wageningen! 🇳🇱"
- *              location:
- *                type: string
- *                example: "Wageningen, Netherlands"
- *              isPinned:
- *                type: boolean
- *                default: false
- *              image:
- *                type: string
- *                format: binary
+ *            $ref: '#/components/schemas/CreatePostRequest'
  *    responses:
  *      201:
  *        description: Post created successfully
  *        content:
  *          application/json:
  *            schema:
- *              type: object
- *              properties:
- *                id:
- *                  type: string
- *                imageUrl:
- *                  type: string
- *                caption:
- *                  type: string
- *                location:
- *                  type: string
- *                isPinned:
- *                  type: boolean
+ *              $ref: '#/components/schemas/Post'
  *      401:
  *        description: Unauthorized
  *  get:
@@ -64,34 +40,7 @@ import { AuthRequest } from '../middleware/authMiddleware';
  *            schema:
  *              type: array
  *              items:
- *                type: object
- *                properties:
- *                  id:
- *                    type: string
- *                  imageUrl:
- *                    type: string
- *                  caption:
- *                    type: string
- *                  location:
- *                    type: string
- *                  isPinned:
- *                    type: boolean
- *                  createdAt:
- *                    type: string
- *                  author:
- *                    type: object
- *                    properties:
- *                      username:
- *                        type: string
- *                      displayName:
- *                        type: string
- *                  _count:
- *                    type: object
- *                    properties:
- *                      likes:
- *                        type: integer
- *                      comments:
- *                        type: integer
+ *                $ref: '#/components/schemas/Post'
 */
 export const createPost = async (req: AuthRequest, res: Response) => {
     const { userId } = req.user!;
@@ -154,36 +103,41 @@ export const getFeed = async (req: AuthRequest, res: Response) => {
 
 /**
  * @openapi 
- * /api/posts/{postId}:
- *  patch:
- *    summary: Edit a post (Caption, Location, or Pin status)
+ * /api/posts:
+ *  get:
+ *    summary: Get all feed posts
  *    tags:
  *      - Feed
  *    security:
  *      - bearerAuth: []
- *    parameters:
- *      - in: path
- *        name: postId
- *        required: true
- *        schema:
- *          type: string
- *    requestBody:
- *      content:
- *        application/json:
- *          schema:
- *            type: object
- *            properties:
- *              caption:
- *                type: string
- *              location:
- *                type: string
- *              isPinned:
- *                type: boolean
  *    responses:
- *      200:
- *        description: Post updated successfully
- *      403:
- *        description: Forbidden - You don't own this post 
+ *      '200':
+ *        description: List of posts for the feed
+ *        content:
+ *          application/json:
+ *            schema:
+ *              type: array
+ *              items:
+ *                $ref: '#/components/schemas/Post'
+ *  post:
+ *    summary: Upload a new photo
+ *    tags:
+ *      - Feed
+ *    security:
+ *      - bearerAuth: []
+ *    requestBody:
+ *      required: true
+ *      content:
+ *        multipart/form-data:
+ *          schema:
+ *            $ref: '#/components/schemas/CreatePostRequest'
+ *    responses:
+ *      '201':
+ *        description: Post created successfully
+ *        content:
+ *          application/json:
+ *            schema:
+ *              $ref: '#/components/schemas/Post'
  */
 
 export const updatePost = async (req: AuthRequest, res: Response) => {
