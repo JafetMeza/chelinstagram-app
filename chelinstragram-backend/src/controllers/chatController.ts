@@ -6,14 +6,14 @@ import { AuthRequest } from '../middleware/authMiddleware';
  * @openapi
  * /api/chat/conversations:
  *  get:
- *    summary: Get all conversations and messages for the logged-in user
+ *    summary: Get inbox (conversations with last message preview)
  *    tags:
  *      - Chat
  *    security:
  *      - bearerAuth: []
  *    responses:
  *      200:
- *        description: List of conversations with participants and messages
+ *        description: List of conversations with the latest message
  *        content:
  *          application/json:
  *            schema:
@@ -23,37 +23,26 @@ import { AuthRequest } from '../middleware/authMiddleware';
  *                properties:
  *                  id:
  *                    type: string
+ *                  updatedAt:
+ *                    type: string
+ *                  participants:
+ *                    type: array
+ *                    items:
+ *                      type: object
  *                  messages:
  *                    type: array
  *                    items:
  *                      type: object
  *                      properties:
- *                        id:
- *                          type: string
  *                        content:
  *                          type: string
- *                        senderId:
+ *                        createdAt:
  *                          type: string
- *                  participants:
- *                    type: array
- *                    items:
- *                      type: object
- *                      properties:
- *                        user:
- *                          type: object
- *                          properties:
- *                            username:
- *                              type: string
- *                            displayName:
- *                              type: string
- *      401:
- *        description: Unauthorized - Token missing or invalid
  */
 export const getConversation = async (req: AuthRequest, res: Response) => {
-    const { userId } = req.user!; // Provided by our middleware
+    const { userId } = req.user!;
 
     try {
-        // Find conversations where the logged-in user is a participant
         const conversations = await prisma.conversation.findMany({
             where: {
                 participants: {
@@ -65,6 +54,7 @@ export const getConversation = async (req: AuthRequest, res: Response) => {
                     include: {
                         user: {
                             select: {
+                                id: true,
                                 username: true,
                                 displayName: true,
                                 avatarUrl: true
@@ -73,15 +63,18 @@ export const getConversation = async (req: AuthRequest, res: Response) => {
                     }
                 },
                 messages: {
-                    orderBy: { createdAt: 'asc' },
-                    take: 50 // Get the last 50 messages
+                    orderBy: { createdAt: 'desc' }, // Get newest first
+                    take: 1, // Only pull the very last message for the preview
                 }
+            },
+            orderBy: {
+                updatedAt: 'desc' // Moves the conversation with the newest message to the top
             }
         });
 
         res.json(conversations);
     } catch (error) {
-        console.error('Chat error:', error);
+        console.error('Inbox error:', error);
         res.status(500).json({ error: 'Failed to fetch conversations' });
     }
 };
@@ -127,22 +120,30 @@ export const getConversation = async (req: AuthRequest, res: Response) => {
  *        description: Unauthorized
  */
 export const sendMessage = async (req: AuthRequest, res: Response) => {
-    const { userId } = req.user!; // Secured sender ID
+    const { userId } = req.user!;
     const { conversationId, content } = req.body;
 
     try {
-        const newMessage = await prisma.message.create({
-            data: {
-                content,
-                senderId: userId,
-                conversationId,
-            },
-            include: {
-                sender: {
-                    select: { username: true, displayName: true }
+        // 1. Create the message and update the Conversation's updatedAt in one transaction
+        const [newMessage] = await prisma.$transaction([
+            prisma.message.create({
+                data: {
+                    content,
+                    senderId: userId,
+                    conversationId,
+                },
+                include: {
+                    sender: {
+                        select: { username: true, displayName: true }
+                    }
                 }
-            }
-        });
+            }),
+            // 2. This is the key: Update the parent conversation timestamp
+            prisma.conversation.update({
+                where: { id: conversationId },
+                data: { updatedAt: new Date() }
+            })
+        ]);
 
         res.status(201).json(newMessage);
     } catch (error) {
@@ -150,3 +151,76 @@ export const sendMessage = async (req: AuthRequest, res: Response) => {
         res.status(500).json({ error: 'Failed to send message' });
     }
 };
+
+/**
+ * @openapi
+ * /api/chat/start:
+ *  post:
+ *    summary: Start or find a conversation with another user
+ *    tags:
+ *      - Chat
+ *    security:
+ *      - bearerAuth: []
+ *    requestBody:
+ *      required: true
+ *      content:
+ *        application/json:
+ *          schema:
+ *            type: object
+ *            properties:
+ *              recipientId:
+ *                type: string
+ *                example: "user-uuid-here"
+ *    responses:
+ *      200:
+ *        description: Conversation object
+ *      500:
+ *        description: Error
+ */
+export const startConversation = async (req: AuthRequest, res: Response) => {
+    const { userId } = req.user!;
+    const { recipientId } = req.body;
+
+    try {
+        // Find if a conversation already exists between these two
+        let conversation = await prisma.conversation.findFirst({
+            where: {
+                AND: [
+                    { participants: { some: { userId: userId } } },
+                    { participants: { some: { userId: recipientId } } }
+                ]
+            },
+            include: {
+                participants: {
+                    include: { user: { select: { username: true, displayName: true, avatarUrl: true } } }
+                },
+                messages: { take: 1, orderBy: { createdAt: 'desc' } }
+            }
+        });
+
+        // If not, create a new one
+        if (!conversation) {
+            conversation = await prisma.conversation.create({
+                data: {
+                    participants: {
+                        create: [
+                            { userId: userId },
+                            { userId: recipientId }
+                        ]
+                    }
+                },
+                include: {
+                    participants: {
+                        include: { user: { select: { username: true, displayName: true, avatarUrl: true } } }
+                    },
+                    messages: true
+                }
+            });
+        }
+
+        res.status(200).json(conversation);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to start conversation' });
+    }
+};
+

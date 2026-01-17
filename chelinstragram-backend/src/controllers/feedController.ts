@@ -118,21 +118,37 @@ export const createPost = async (req: AuthRequest, res: Response) => {
 };
 
 export const getFeed = async (req: AuthRequest, res: Response) => {
+    const { userId } = req.user!;
+
     try {
+        // 1. Get the IDs of everyone you follow
+        const following = await prisma.follow.findMany({
+            where: { followerId: userId },
+            select: { followingId: true }
+        });
+
+        const followingIds = following.map(f => f.followingId);
+
+        // 2. Add your own ID to the list so you see your own posts too
+        const authorIds = [...followingIds, userId];
+
+        // 3. Filter the feed
         const posts = await prisma.post.findMany({
+            where: {
+                authorId: { in: authorIds }
+            },
             orderBy: [
-                { isPinned: 'desc' }, // Pinned posts (true) come before unpinned (false)
-                { createdAt: 'desc' } // Newest posts come after pinned ones
+                { isPinned: 'desc' },
+                { createdAt: 'desc' }
             ],
             include: {
-                author: { select: { username: true, displayName: true } },
+                author: { select: { username: true, displayName: true, avatarUrl: true } },
                 _count: { select: { likes: true, comments: true } }
             }
         });
         res.json(posts);
     } catch (error) {
-        console.log(error);
-        res.status(500).json({ error: 'Failed to fetch feed' });
+        res.status(500).json({ error: 'Failed to fetch personalized feed' });
     }
 };
 
@@ -207,5 +223,45 @@ export const updatePost = async (req: AuthRequest, res: Response) => {
     } catch (error) {
         console.error("UPDATE POST ERROR:", error);
         res.status(500).json({ error: "Failed to update post" });
+    }
+};
+
+/**
+ * @openapi
+ * /api/posts/{postId}:
+ *  delete:
+ *    summary: Delete a post
+ *    tags:
+ *      - Feed
+ *    security:
+ *      - bearerAuth: []
+ *    parameters:
+ *      - in: path
+ *        name: postId
+ *        required: true
+ *        schema:
+ *          type: string
+ *    responses:
+ *      200:
+ *        description: Post deleted
+ *      403:
+ *        description: Unauthorized
+ */
+export const deletePost = async (req: AuthRequest, res: Response) => {
+    const postId = req.params.postId as string;
+    const { userId } = req.user!;
+
+    try {
+        const post = await prisma.post.findUnique({ where: { id: postId } });
+
+        if (!post) return res.status(404).json({ error: "Post not found" });
+        if (post.authorId !== userId) return res.status(403).json({ error: "Unauthorized" });
+
+        // This will also delete related Likes and Comments due to Prisma's relation settings
+        await prisma.post.delete({ where: { id: postId } });
+
+        res.json({ message: "Post deleted successfully" });
+    } catch (error) {
+        res.status(500).json({ error: "Failed to delete post" });
     }
 };
