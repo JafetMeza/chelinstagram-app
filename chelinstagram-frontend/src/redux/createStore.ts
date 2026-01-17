@@ -3,10 +3,12 @@ import { loadState, saveState } from "../helpers/localStorageForRedux";
 import { combineReducers, configureStore } from "@reduxjs/toolkit";
 import themeReducer from "./ducks/theme";
 import apiDataReducer from "./ducks/apiData";
+import authReducer from "./ducks/auth";
 
 const rootReducer = combineReducers({
   theme: themeReducer,
   apiData: apiDataReducer,
+  authData: authReducer
 });
 
 const persistedState = loadState();
@@ -21,6 +23,7 @@ store.subscribe(
   throttle(() => {
     saveState({
       theme: store.getState().theme,
+      authData: store.getState().authData,
     });
   }, 1000)
 );

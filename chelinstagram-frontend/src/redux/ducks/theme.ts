@@ -8,6 +8,7 @@ const themeSlice = createSlice({
   initialState: initialState as theme,
   reducers: {
     setTheme(_, action: PayloadAction<theme>) {
+      console.log("wicho");
       return action.payload;
     },
   },

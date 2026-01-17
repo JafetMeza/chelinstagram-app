@@ -13,65 +13,39 @@ export const RequestOptions = (
   type: RequestType,
   data: object | FormData | string | boolean = {}
 ): RequestInit => {
-  let header: HeadersInit | undefined = {
-    "X-Content-Type-Options": "nosniff",
-    "Cashe-Control": "no-cache, no-store, must-revalidate",
-  };
-  if (type === RequestType.POST || type === RequestType.PUT || type === RequestType.PATCH)
-    header = {
-      ...header,
-      "Content-Type": "application/problem+json; charset=utf-8",
-    };
+  // 1. Get token from localStorage
+  const token = localStorage.getItem("token");
 
-  switch (type) {
-    case RequestType.GET:
-      return {
-        method: RequestType.GET,
-        headers: header,
-      };
-    case RequestType.POST:
-      return {
-        method: RequestType.POST,
-        headers: header,
-        body: JSON.stringify(data),
-      };
-    case RequestType.PUT:
-      return {
-        method: RequestType.PUT,
-        headers: header,
-        body: JSON.stringify(data),
-      };
-    case RequestType.PATCH:
-      return {
-        method: RequestType.PATCH,
-        headers: header,
-        body: JSON.stringify(data),
-      };
-    case RequestType.DELETE:
-      return {
-        method: RequestType.DELETE,
-        headers: header,
-      };
-    case RequestType.FORM:
-      return {
-        method: RequestType.POST,
-        headers: header,
-        body: data as FormData,
-      };
-    case RequestType.LOGIN:
-      return {
-        method: RequestType.POST,
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(data),
-      };
-    default:
-      return {
-        method: RequestType.GET,
-        headers: header
-      };
+  // 2. Base Headers
+  const header: HeadersInit = {
+    "X-Content-Type-Options": "nosniff",
+    "Cache-Control": "no-cache, no-store, must-revalidate", // Fixed typo "Cashe"
+  };
+
+  // 3. Add Authorization if token exists
+  if (token) {
+    header["Authorization"] = `Bearer ${token}`;
   }
+
+  // 4. Handle Content-Type and Body
+  const isFormData = data instanceof FormData;
+
+  // Only set application/json if we aren't sending FormData
+  if (!isFormData && type !== RequestType.GET && type !== RequestType.DELETE) {
+    header["Content-Type"] = "application/json; charset=utf-8";
+  }
+
+  const options: RequestInit = {
+    method: type === RequestType.FORM ? "POST" : type,
+    headers: header,
+  };
+
+  // 5. Attach Body
+  if (type !== RequestType.GET && type !== RequestType.DELETE) {
+    options.body = isFormData ? (data as FormData) : JSON.stringify(data);
+  }
+
+  return options;
 };
 
 export const fetchMethod = async <T>(
@@ -81,7 +55,7 @@ export const fetchMethod = async <T>(
 ): Promise<ApiResponse<T>> => {
   const request = RequestOptions(type, data);
   try {
-    const response = await fetch(url, { ...request, credentials: 'include' });
+    const response = await fetch(url, request);
     if (!response.ok) throw response;
     return asyncResponse<T>(
       ResponseStatus.OK,
@@ -139,7 +113,7 @@ export const fetchFileMethod = async (
   fileName: string
 ): Promise<ApiResponse<string>> => {
   const request = RequestOptions(RequestType.GET);
-  const response = await fetch(url, { ...request, credentials: 'include' });
+  const response = await fetch(url, request);
   try {
     const data = await response.blob();
     const dataUrl = URL.createObjectURL(data);
