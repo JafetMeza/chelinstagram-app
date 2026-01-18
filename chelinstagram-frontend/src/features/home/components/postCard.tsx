@@ -27,7 +27,7 @@ const PostCard = ({
         : `${Url}${post.imageUrl}`;
 
     return (
-        <div className="relative w-full bg-white dark:bg-black border-b border-gray-200 dark:border-zinc-800 pb-4 mb-4">
+        <div className="relative w-full bg-white dark:bg-black border-b border-gray-200 dark:border-zinc-800 pb-4 mb-4 overflow-hidden">
             {/* Header: User Info */}
             <div className="flex items-center justify-between p-3">
                 <div className="flex items-center gap-3">
@@ -43,7 +43,7 @@ const PostCard = ({
             </div>
 
             {/* Image */}
-            <div className="w-full aspect-square bg-gray-100 dark:bg-zinc-900 overflow-hidden rounded-sm border border-gray-200 dark:border-zinc-800">
+            <div className="w-full aspect-square relative bg-gray-100 dark:bg-zinc-900">
                 <img
                     src={fullImageUrl}
                     alt={post.caption || 'Post Image'}
@@ -74,7 +74,7 @@ const PostCard = ({
             </div>
 
             {isShowingComments && (
-                <div className="absolute inset-0 z-20 bg-white dark:bg-black flex flex-col animate-slide-up shadow-2xl">
+                <div className="absolute inset-0 z-20 bg-white dark:bg-black flex flex-col animate-slide-up">
                     {/* Header */}
                     <div className="flex items-center justify-between p-3 border-b border-gray-100 dark:border-zinc-800">
                         <span className="font-semibold text-sm">Comments</span>

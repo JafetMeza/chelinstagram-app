@@ -3,18 +3,18 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @keyframes slideUp {
-  from {
+  0% {
     transform: translateY(100%);
-    opacity: 0;
   }
-  to {
+  100% {
     transform: translateY(0);
-    opacity: 1;
   }
 }
 
 .animate-slide-up {
-  animation: slideUp 0.3s ease-out forwards;
+  animation: slideUp 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+  /* Remove 'forwards' if the element is being removed from DOM anyway */
 }
 
 html,
