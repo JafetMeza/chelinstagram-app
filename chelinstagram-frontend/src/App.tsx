@@ -6,6 +6,7 @@ import LoginPage from "./pages/loginPage";
 import { ROUTES } from "./routes";
 import AuthenticationProvider from "./components/context/authenticationContext";
 import CreateChelfiePage from "./pages/createChelfiePage";
+import SearchPage from "./pages/searchPage";
 
 function App() {
 
@@ -17,6 +18,7 @@ function App() {
           <Route element={<Layout />}>
             <Route path={ROUTES.HOME} element={<HomePage />} />
             <Route path={ROUTES.CREATE} element={<CreateChelfiePage />} />
+            <Route path={ROUTES.EXPLORE} element={<SearchPage />} />
           </Route>
         </Routes>
       </AuthenticationProvider>
