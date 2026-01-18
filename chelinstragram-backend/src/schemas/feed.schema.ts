@@ -13,9 +13,11 @@ export const feedSchemas = {
                 type: 'object',
                 properties: {
                     username: { type: 'string' },
-                    displayName: { type: 'string', nullable: true }
+                    displayName: { type: 'string', nullable: true },
+                    avatarUrl: { type: 'string' },
                 }
             },
+            isLikedByUser: { type: 'boolean' },
             _count: {
                 type: 'object',
                 properties: {

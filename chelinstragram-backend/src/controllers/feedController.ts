@@ -67,37 +67,46 @@ export const createPost = async (req: AuthRequest, res: Response) => {
 };
 
 export const getFeed = async (req: AuthRequest, res: Response) => {
-    const { userId } = req.user!;
-
     try {
-        // 1. Get the IDs of everyone you follow
-        const following = await prisma.follow.findMany({
-            where: { followerId: userId },
-            select: { followingId: true }
-        });
+        const { userId } = req.user!;
 
-        const followingIds = following.map(f => f.followingId);
-
-        // 2. Add your own ID to the list so you see your own posts too
-        const authorIds = [...followingIds, userId];
-
-        // 3. Filter the feed
         const posts = await prisma.post.findMany({
-            where: {
-                authorId: { in: authorIds }
-            },
-            orderBy: [
-                { isPinned: 'desc' },
-                { createdAt: 'desc' }
-            ],
+            orderBy: { createdAt: 'desc' },
             include: {
-                author: { select: { username: true, displayName: true, avatarUrl: true } },
-                _count: { select: { likes: true, comments: true } }
+                author: {
+                    select: {
+                        username: true,
+                        displayName: true,
+                        avatarUrl: true,
+                    }
+                },
+                // This checks if the current user is among the people who liked it
+                likes: {
+                    where: {
+                        userId: userId
+                    },
+                    select: {
+                        userId: true
+                    }
+                },
+                _count: {
+                    select: {
+                        likes: true,
+                        comments: true
+                    }
+                }
             }
         });
-        res.json(posts);
+
+        // Map the results to add a simple boolean: "isLikedByUser"
+        const postsWithLikeStatus = posts.map(post => ({
+            ...post,
+            isLikedByUser: post.likes.length > 0
+        }));
+
+        res.status(200).json(postsWithLikeStatus);
     } catch (error) {
-        res.status(500).json({ error: 'Failed to fetch personalized feed' });
+        res.status(500).json({ error: "Failed to fetch feed" });
     }
 };
 
