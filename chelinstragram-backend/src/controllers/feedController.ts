@@ -228,3 +228,68 @@ export const deletePost = async (req: AuthRequest, res: Response) => {
         res.status(500).json({ error: "Failed to delete post" });
     }
 };
+
+/**
+ * @openapi
+ * /api/posts/user/{username}:
+ *    get:
+ *      summary: Get all posts for a specific user (supports Grid and Feed views)
+ *      tags:
+ *        - Posts
+ *      parameters:
+ *        - name: username
+ *          in: path
+ *          required: true
+ *          description: The username of the user whose grid posts are being requested.
+ *          schema:
+ *            type: string
+ *            example: "testUser"
+ *      responses:
+ *        '200':
+ *          description: A list of posts formatted for both grid and full feed display.
+ *          content:
+ *            application/json:
+ *              schema:
+ *                type: array
+ *                items:
+ *                  $ref: '#/components/schemas/Post'
+ *        '401':
+ *          description: Unauthorized. Missing or invalid token.
+ *        '404':
+ *          description: User not found.
+ *        '500':
+ *          description: Internal server error.
+ */
+export const getUserPosts = async (req: AuthRequest, res: Response) => {
+    const { username } = req.params;
+
+    try {
+        const posts = await prisma.post.findMany({
+            where: {
+                author: { username: username as string }
+            },
+            orderBy: { createdAt: 'desc' },
+            select: {
+                id: true,
+                imageUrl: true,
+                caption: true,   // Added for the full feed view
+                location: true,  // Added for the full feed view
+                createdAt: true, // Added for the full feed view
+                author: {        // Added so PostCard knows who the author is
+                    select: {
+                        username: true,
+                        displayName: true,
+                        avatarUrl: true
+                    }
+                },
+                _count: {
+                    select: { likes: true, comments: true }
+                }
+            }
+        });
+
+        res.status(200).json(posts);
+    } catch (error) {
+        res.status(500).json({ error: "Error fetching user posts" });
+    }
+};

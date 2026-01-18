@@ -143,7 +143,7 @@ export const searchUsers = async (req: AuthRequest, res: Response) => {
 
 /**
  * @openapi
- * /api/users/{userId}:
+ * /api/users/{username}:
  *  get:
  *    summary: Get public profile and posts of another user
  *    tags:
@@ -152,7 +152,7 @@ export const searchUsers = async (req: AuthRequest, res: Response) => {
  *      - bearerAuth: []
  *    parameters:
  *      - in: path
- *        name: userId
+ *        name: username
  *        required: true
  *        schema:
  *          type: string
@@ -164,37 +164,48 @@ export const searchUsers = async (req: AuthRequest, res: Response) => {
  *            schema:
  *              $ref: '#/components/schemas/UserProfile'
  */
-export const getUserById = async (req: AuthRequest, res: Response) => {
-    const { userId: targetUserId } = req.params;
+export const getUserByUserName = async (req: AuthRequest, res: Response) => {
+    const { username } = req.params;
+    const { userId: requesterId } = req.user!; // Your ID from the token
 
     try {
         const user = await prisma.user.findUnique({
-            where: { id: targetUserId as string },
+            where: { username: username as string },
             select: {
                 id: true,
                 username: true,
                 displayName: true,
                 bio: true,
                 avatarUrl: true,
-                posts: {
-                    orderBy: { createdAt: 'desc' },
-                    include: {
-                        _count: { select: { likes: true, comments: true } }
-                    }
-                },
                 _count: {
-                    select: {
-                        followers: true,
-                        following: true,
-                        posts: true
-                    }
+                    select: { followers: true, following: true, posts: true }
                 }
             }
         });
 
         if (!user) return res.status(404).json({ error: "User not found" });
 
-        res.json(user);
+        // Logic for isFollowing
+        let isFollowing = false;
+
+        if (user.id === requesterId) {
+            // If it's your own account, you "follow" yourself for UI purposes
+            isFollowing = true;
+        } else {
+            // Check the database for the follow relationship
+            const followRecord = await prisma.follow.findUnique({
+                where: {
+                    followerId_followingId: {
+                        followerId: requesterId,
+                        followingId: user.id,
+                    },
+                },
+            });
+            isFollowing = !!followRecord;
+        }
+
+        // Return the user data merged with the isFollowing status
+        res.json({ ...user, isFollowing });
     } catch (error) {
         res.status(500).json({ error: 'Failed to fetch user profile' });
     }
@@ -267,5 +278,98 @@ export const toggleFollow = async (req: AuthRequest, res: Response) => {
     } catch (error) {
         console.error("FOLLOW ERROR:", error);
         res.status(500).json({ error: "Failed to update follow status" });
+    }
+};
+
+/**
+ * @openapi
+ * /api/users/{username}/followers:
+ *    get:
+ *      summary: Get user followers
+ *      tags:
+ *        - Users
+ *      parameters:
+ *        - in: path
+ *          name: username
+ *          required: true
+ *          schema:
+ *            type: string
+ *      responses:
+ *        '200':
+ *          description: List of followers
+ *          content:
+ *            application/json:
+ *              schema:
+ *                type: array
+ *                items:
+ *                  $ref: '#/components/schemas/SearchUser'
+ */
+export const getFollowers = async (req: AuthRequest, res: Response) => {
+    const { username } = req.params;
+
+    try {
+        const followers = await prisma.follow.findMany({
+            where: { following: { username: username as string } },
+            select: {
+                follower: {
+                    select: {
+                        username: true,
+                        displayName: true,
+                        avatarUrl: true
+                    }
+                }
+            }
+        });
+
+        // Flatten the response so it's a list of users directly
+        res.json(followers.map(f => f.follower));
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch followers' });
+    }
+};
+
+/**
+ * @openapi
+ * /api/users/{username}/following:
+ *    get:
+ *      summary: Get accounts a user follows
+ *      tags:
+ *        - Users
+ *      parameters:
+ *        - in: path
+ *          name: username
+ *          required: true
+ *          schema:
+ *            type: string
+ *      responses:
+ *        '200':
+ *          description: List of following accounts
+ *          content:
+ *            application/json:
+ *              schema:
+ *                type: array
+ *                items:
+ *                  $ref: '#/components/schemas/SearchUser'
+ */
+export const getFollowing = async (req: AuthRequest, res: Response) => {
+    const { username } = req.params;
+
+    try {
+        const following = await prisma.follow.findMany({
+            where: { follower: { username: username as string } },
+            select: {
+                following: {
+                    select: {
+                        username: true,
+                        displayName: true,
+                        avatarUrl: true
+                    }
+                }
+            }
+        });
+
+        res.json(following.map(f => f.following));
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch following' });
     }
 };

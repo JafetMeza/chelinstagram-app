@@ -7,17 +7,19 @@ export const userSchemas = {
             username: { type: 'string' },
             email: { type: 'string' },
             displayName: { type: 'string', nullable: true },
-            avatar: { type: 'string', nullable: true },
+            avatarUrl: { type: 'string', nullable: true },
         }
     },
     // Detailed Profile (for the Profile Page)
     UserProfile: {
         type: 'object',
         properties: {
+            id: { type: 'string' },
             username: { type: 'string' },
             displayName: { type: 'string', nullable: true },
             bio: { type: 'string', nullable: true },
-            avatar: { type: 'string', nullable: true },
+            avatarUrl: { type: 'string', nullable: true },
+            isFollowing: { type: 'boolean' },
             _count: {
                 type: 'object',
                 properties: {
@@ -56,7 +58,7 @@ export const userSchemas = {
         properties: {
             displayName: { type: 'string' },
             bio: { type: 'string' },
-            avatar: { type: 'string', format: 'binary' }
+            avatarUrl: { type: 'string', format: 'binary' }
         }
     }
 };

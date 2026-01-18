@@ -5,10 +5,10 @@ import { authenticateToken } from './middleware/authMiddleware';
 import { login } from './controllers/authController';
 import { getConversation, sendMessage, startConversation } from "./controllers/chatController";
 import multer from "multer";
-import { createPost, deletePost, getFeed, updatePost } from "./controllers/feedController";
+import { createPost, deletePost, getFeed, getUserPosts, updatePost } from "./controllers/feedController";
 import path from 'path';
 import { addComment, getCommentsByPost, toggleLike } from "./controllers/interactionController";
-import { getProfile, getUserById, searchUsers, updateProfile, toggleFollow } from "./controllers/userController";
+import { getProfile, getUserByUserName, searchUsers, updateProfile, toggleFollow, getFollowers, getFollowing } from "./controllers/userController";
 import cors from 'cors';
 import { authSchemas } from "./schemas/auth.schema";
 import { userSchemas } from "./schemas/user.schema";
@@ -108,6 +108,7 @@ app.post('/api/posts', authenticateToken, upload.single('image'), createPost);
 app.get('/api/posts', authenticateToken, getFeed);
 app.patch('/api/posts/:postId', authenticateToken, updatePost);
 app.delete('/api/posts/:postId', authenticateToken, deletePost);
+app.get('/api/posts/user/:username', authenticateToken, getUserPosts);
 
 // Protected Interaction Routes
 app.post('/api/interactions/like', authenticateToken, toggleLike);
@@ -121,7 +122,9 @@ app.post('/api/users/follow', authenticateToken, toggleFollow);
 
 // User Search Route
 app.get('/api/users/search', authenticateToken, searchUsers);
-app.get('/api/users/:userId', authenticateToken, getUserById);
+app.get('/api/users/:username', authenticateToken, getUserByUserName);
+app.get('/api/users/:username/followers', authenticateToken, getFollowers);
+app.get('/api/users/:username/following', authenticateToken, getFollowing);
 
 const PORT = 3001;
 app.listen(PORT, () => {
