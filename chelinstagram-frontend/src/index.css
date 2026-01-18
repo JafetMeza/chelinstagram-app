@@ -2,11 +2,26 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-up {
+  animation: slideUp 0.3s ease-out forwards;
+}
+
 html,
 body,
 #root {
   margin: 0;
   padding: 0;
+  overflow-x: hidden; /* Prevent horizontal scroll */
   height: 100%;
-  width: 100%;
 }

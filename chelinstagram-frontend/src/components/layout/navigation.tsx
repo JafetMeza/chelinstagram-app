@@ -25,7 +25,7 @@ const Navigation = () => {
             </nav>
 
             {/* DESKTOP SIDEBAR */}
-            <nav className="hidden lg:flex fixed left-0 h-screen w-20 xl:w-64 border-r border-gray-200 dark:border-zinc-800 p-4 flex-col bg-white dark:bg-black">
+            <nav className="hidden lg:flex fixed left-0 h-screen w-20 xl:w-64 border-r border-gray-200 dark:border-zinc-800 p-4 flex-col bg-white dark:bg-black dark:text-white">
                 <h1 className="hidden xl:block text-2xl italic font-serif mb-10 px-2">Chelinstagram</h1>
                 <div className="flex flex-col gap-4">
                     {navItems.map((item) => (

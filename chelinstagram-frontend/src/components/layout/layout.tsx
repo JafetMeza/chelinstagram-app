@@ -32,9 +32,9 @@ const Layout = () => {
             <Navigation />
 
             {/* Main Feed Area */}
-            <main className="flex-1 pb-16 lg:pb-0 lg:ml-20 xl:ml-64 flex flex-col items-center">
+            <main className="flex-1 pb-16 lg:pb-0 lg:ml-20 xl:ml-64 flex flex-col items-center text-black dark:text-white">
 
-                {/* 4. Utility Bar (Desktop Header/Actions) */}
+                {/* 1. Utility Bar (Desktop Header/Actions) */}
                 <div className="hidden lg:flex w-full max-w-157.5 justify-end gap-4 p-4">
                     <button
                         onClick={toggleTheme}
@@ -55,7 +55,8 @@ const Layout = () => {
                     </button>
                 </div>
 
-                <div className="w-full max-w-157.5">
+                {/* 2. Content Wrapper with Responsive Padding */}
+                <div className="w-full max-w-157.5 p-4 lg:p-8">
                     <Outlet />
                 </div>
             </main>

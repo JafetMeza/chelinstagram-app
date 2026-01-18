@@ -1,3 +1,4 @@
+import store from "@/redux/createStore";
 import {
   type ApiResponse,
   RequestType,
@@ -14,7 +15,7 @@ export const RequestOptions = (
   data: object | FormData | string | boolean = {}
 ): RequestInit => {
   // 1. Get token from localStorage
-  const token = localStorage.getItem("token");
+  const token = store.getState().authData.token;
 
   // 2. Base Headers
   const header: HeadersInit = {

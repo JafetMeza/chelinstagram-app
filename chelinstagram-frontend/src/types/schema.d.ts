@@ -93,7 +93,9 @@ export interface Post {
   author?: {
     username?: string;
     displayName?: string | null;
+    avatarUrl?: string;
   };
+  isLikedByUser?: boolean;
   _count?: {
     likes?: number;
     comments?: number;

@@ -24,7 +24,7 @@ const LoginPage = () => {
                 const authResponse = data as AuthResponse;
                 onLogin(authResponse);
                 dispatch(apiClear());
-            } else if (ok === false) {
+            } else {
                 // 2. Map the server error to your local state
                 setLocalError(errorMessage || "Invalid username or password");
                 dispatch(apiClear());
@@ -41,7 +41,7 @@ const LoginPage = () => {
         const { name, value } = e.target;
         // 3. Clear the error when the user starts typing again
         if (localError) setLocalError(null);
-        setFormData(prev => ({ ...prev, [name]: value }));
+        setFormData((prev: LoginRequest) => ({ ...prev, [name]: value }));
     };
 
     const handleLogin = async (e: React.FormEvent) => {
