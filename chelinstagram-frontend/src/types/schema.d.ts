@@ -15,14 +15,16 @@ export interface User {
   username: string;
   email: string;
   displayName?: string | null;
-  avatar?: string | null;
+  avatarUrl?: string | null;
 }
 
 export interface UserProfile {
+  id?: string;
   username?: string;
   displayName?: string | null;
   bio?: string | null;
-  avatar?: string | null;
+  avatarUrl?: string | null;
+  isFollowing?: boolean;
   _count?: {
     followers?: number;
     following?: number;
@@ -45,7 +47,7 @@ export interface UpdateProfileRequest {
   displayName?: string;
   bio?: string;
   /** @format binary */
-  avatar?: File;
+  avatarUrl?: File;
 }
 
 export interface LoginRequest {

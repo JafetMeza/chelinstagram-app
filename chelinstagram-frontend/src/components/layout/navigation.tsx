@@ -3,14 +3,17 @@ import { faHome, faSearch, faSquarePlus, faUser } from '@fortawesome/free-solid-
 import { faMessage } from '@fortawesome/free-regular-svg-icons';
 import { Link } from 'react-router-dom';
 import { ROUTES } from "@/routes";
+import { useAppSelector } from "@/redux/hooks";
 
 const Navigation = () => {
+    const { user } = useAppSelector(state => state.authData);
+
     const navItems = [
         { icon: faHome, label: 'Home', path: ROUTES.HOME },
         { icon: faSearch, label: 'Search', path: ROUTES.EXPLORE },
         { icon: faSquarePlus, label: 'Create', path: ROUTES.CREATE },
         { icon: faMessage, label: 'Messages', path: ROUTES.CHAT },
-        { icon: faUser, label: 'Profile', path: ROUTES.PROFILE('me') }, // Example usage
+        { icon: faUser, label: 'Profile', path: ROUTES.PROFILE(user?.username ?? "") }, // Example usage
     ];
 
     return (

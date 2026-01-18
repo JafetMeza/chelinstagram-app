@@ -17,6 +17,9 @@ export const CreatePostApi = async (data: FormData): Promise<ApiResponse<Post>> 
 export const DeletePostApi = async (postId: string): Promise<ApiResponse<void>> =>
     await fetchMethod<void>(API_ROUTES.POSTS.BY_ID(postId), RequestType.DELETE);
 
+export const GetUserPostsApi = async (username: string): Promise<ApiResponse<Post[]>> =>
+    await fetchMethod<Post[]>(API_ROUTES.POSTS.BY_USER(username), RequestType.GET);
+
 // --- INTERACTIONS ---
 export const ToggleLikeApi = async (postId: string): Promise<ApiResponse<void>> =>
     await fetchMethod<void>(API_ROUTES.INTERACTIONS.LIKE, RequestType.POST, { postId });
@@ -38,5 +41,20 @@ export const SendMessageApi = async (data: SendMessageRequest): Promise<ApiRespo
 export const GetMyProfileApi = async (): Promise<ApiResponse<UserProfile>> =>
     await fetchMethod<UserProfile>(API_ROUTES.USERS.PROFILE, RequestType.GET);
 
+export const GetUserByUserNameApi = async (userId: string): Promise<ApiResponse<UserProfile>> =>
+    await fetchMethod<UserProfile>(API_ROUTES.USERS.BY_USERNAME(userId), RequestType.GET);
+
 export const SearchUsersApi = async (query: string): Promise<ApiResponse<SearchUser[]>> =>
     await fetchMethod<SearchUser[]>(`${API_ROUTES.USERS.SEARCH}?query=${query}`, RequestType.GET);
+
+export const GetFollowersApi = async (username: string): Promise<ApiResponse<SearchUser[]>> =>
+    await fetchMethod<SearchUser[]>(`${API_ROUTES.USERS.FOLLOWERS(username)}`, RequestType.GET);
+
+export const GetFollowingApi = async (username: string): Promise<ApiResponse<SearchUser[]>> =>
+    await fetchMethod<SearchUser[]>(`${API_ROUTES.USERS.FOLLOWING(username)}`, RequestType.GET);
+
+export const UpdateProfileApi = async (data: FormData): Promise<ApiResponse<void>> =>
+    await fetchMethod<void>(API_ROUTES.USERS.PROFILE, RequestType.PATCH, data);
+
+export const ToggleFollowApi = async (followingId: string): Promise<ApiResponse<void>> =>
+    await fetchMethod<void>(API_ROUTES.USERS.FOLLOW, RequestType.POST, { followingId });

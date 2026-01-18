@@ -11,6 +11,7 @@ export const API_ROUTES = {
     POSTS: {
         BASE: `${UrlHost}/posts`,
         BY_ID: (postId: string) => `${UrlHost}/posts/${postId}`,
+        BY_USER: (username: string) => `${UrlHost}/posts/user/${username}`,
     },
 
     // Interactions
@@ -31,7 +32,9 @@ export const API_ROUTES = {
     USERS: {
         PROFILE: `${UrlHost}/users/profile`,
         SEARCH: `${UrlHost}/users/search`,
-        BY_ID: (userId: string) => `${UrlHost}/users/${userId}`,
+        BY_USERNAME: (userId: string) => `${UrlHost}/users/${userId}`,
+        FOLLOWERS: (username: string) => `${UrlHost}/users/${username}/followers`,
+        FOLLOWING: (username: string) => `${UrlHost}/users/${username}/following`,
         FOLLOW: `${UrlHost}/users/follow`,
     }
 };

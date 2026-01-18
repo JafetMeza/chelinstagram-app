@@ -3,6 +3,8 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faHeart as faHeartReg, faComment as faCommentReg } from '@fortawesome/free-regular-svg-icons';
 import { faHeart as faHeartSolid, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { Url } from "@/service/helpers/urlConstants";
+import { ROUTES } from "@/routes";
+import { useNavigate } from "react-router";
 
 interface PostCardProps {
     post: Post;
@@ -13,33 +15,46 @@ interface PostCardProps {
     activePostId: string | null; // Used to know if THIS post's comments should show
     onOpenComments: (postId: string) => void;
     onCloseComments: () => void;
+    disableProfileClick?: boolean;
 }
 
 const PostCard = ({
     post, isLiked, onToggleLike,
-    comments, activePostId, onOpenComments, onCloseComments
+    comments, activePostId, onOpenComments, onCloseComments,
+    disableProfileClick = false
 }: PostCardProps) => {
-
+    const navigate = useNavigate();
     const isShowingComments = activePostId === post.id;
 
     const fullImageUrl = post.imageUrl?.startsWith('http')
         ? post.imageUrl
         : `${Url}${post.imageUrl}`;
 
+    // Helper to navigate to profile
+    const handleProfileClick = () => {
+        if (!disableProfileClick && post.author?.username) {
+            navigate(ROUTES.PROFILE(post.author.username));
+        }
+    };
+
     return (
         <div className="relative w-full bg-white dark:bg-black border-b border-gray-200 dark:border-zinc-800 pb-4 mb-4 overflow-hidden">
             {/* Header: User Info */}
             <div className="flex items-center justify-between p-3">
-                <div className="flex items-center gap-3">
+                {/* Wrapped in a button for accessibility and navigation */}
+                <button
+                    onClick={handleProfileClick}
+                    className="flex items-center gap-3 active:opacity-60 transition-opacity"
+                >
                     <img
-                        src={post.author?.avatarUrl || '/default-avatar.png'}
+                        src={post.author?.avatarUrl ? `${Url}${post.author.avatarUrl}` : '/default-avatar.png'}
                         alt={post.author?.username}
                         className="w-8 h-8 rounded-full object-cover border border-gray-200 dark:border-zinc-700"
                     />
-                    <span className="font-semibold text-sm text-black dark:text-white">
+                    <span className="font-semibold text-sm text-black dark:text-white hover:underline decoration-1">
                         {post.author?.displayName}
                     </span>
-                </div>
+                </button>
             </div>
 
             {/* Image */}
