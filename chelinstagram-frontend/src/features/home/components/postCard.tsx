@@ -51,17 +51,33 @@ const PostCard = ({
                 />
             </div>
 
-            {/* Interaction Buttons */}
-            <div className="flex gap-4 px-1 py-3 text-2xl text-black dark:text-white">
-                <button
-                    onClick={() => post.id && onToggleLike(post.id)}
-                    className={`transition-transform active:scale-125 ${isLiked ? 'text-red-500' : ''}`}
-                >
-                    <FontAwesomeIcon icon={isLiked ? faHeartSolid : faHeartReg} />
-                </button>
-                <button onClick={() => post.id && onOpenComments(post.id)} className="hover:text-gray-500">
-                    <FontAwesomeIcon icon={faCommentReg} />
-                </button>
+            {/* Interaction Buttons & Date */}
+            <div className="flex items-center justify-between px-1 py-3 text-black dark:text-white w-full">
+                {/* Action Icons */}
+                <div className="flex gap-4 text-2xl">
+                    <button
+                        onClick={() => post.id && onToggleLike(post.id)}
+                        className={`transition-transform active:scale-125 duration-100 ${isLiked ? 'text-red-500' : 'hover:text-gray-500'}`}
+                    >
+                        <FontAwesomeIcon icon={isLiked ? faHeartSolid : faHeartReg} />
+                    </button>
+
+                    <button
+                        onClick={() => post.id && onOpenComments(post.id)}
+                        className="hover:text-gray-500 transition-colors"
+                    >
+                        <FontAwesomeIcon icon={faCommentReg} />
+                    </button>
+                </div>
+
+                {/* Formatted Date */}
+                <time className="text-[11px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400 font-medium">
+                    {post.createdAt ? new Date(post.createdAt).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: (new Date(post.createdAt).getFullYear() !== new Date().getFullYear()) ? 'numeric' : undefined
+                    }) : ''}
+                </time>
             </div>
 
             {/* Caption Section */}
