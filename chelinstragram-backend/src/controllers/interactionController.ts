@@ -16,14 +16,11 @@ import { AuthRequest } from '../middleware/authMiddleware';
  *      content:
  *        application/json:
  *          schema:
- *            type: object
- *            properties:
- *              postId:
- *                type: string
+ *            $ref: '#/components/schemas/LikeRequest'
  *    responses:
- *      200:
+ *      '200':
  *        description: Like toggled successfully
- *      401:
+ *      '401':
  *        description: Unauthorized
 */
 
@@ -69,17 +66,15 @@ export const toggleLike = async (req: AuthRequest, res: Response) => {
  *      content:
  *        application/json:
  *          schema:
- *            type: object
- *            properties:
- *              postId:
- *                type: string
- *              content:
- *                type: string
- *                example: "Que hermosa foto, Graciela! ❤️"
+ *            $ref: '#/components/schemas/CommentRequest'
  *    responses:
- *      201:
+ *      '201':
  *        description: Comment created
- *      401:
+ *        content:
+ *          application/json:
+ *            schema:
+ *              $ref: '#/components/schemas/Comment'
+ *      '401':
  *        description: Unauthorized
  */
 
@@ -122,29 +117,15 @@ export const addComment = async (req: AuthRequest, res: Response) => {
  *          type: string
  *        description: The ID of the post to get comments for
  *    responses:
- *      200:
+ *      '200':
  *        description: List of comments
  *        content:
  *          application/json:
  *            schema:
  *              type: array
  *              items:
- *                type: object
- *                properties:
- *                  id:
- *                    type: string
- *                  content:
- *                    type: string
- *                  createdAt:
- *                    type: string
- *                  author:
- *                    type: object
- *                    properties:
- *                      username:
- *                        type: string
- *                      displayName:
- *                        type: string
- *      401:
+ *                $ref: '#/components/schemas/Comment'
+ *      '401':
  *        description: Unauthorized
  */
 export const getCommentsByPost = async (req: AuthRequest, res: Response) => {

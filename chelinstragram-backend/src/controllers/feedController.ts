@@ -16,38 +16,14 @@ import { AuthRequest } from '../middleware/authMiddleware';
  *      content:
  *        multipart/form-data:
  *          schema:
- *            type: object
- *            properties:
- *              caption:
- *                type: string
- *                example: "A beautiful day in Wageningen! 🇳🇱"
- *              location:
- *                type: string
- *                example: "Wageningen, Netherlands"
- *              isPinned:
- *                type: boolean
- *                default: false
- *              image:
- *                type: string
- *                format: binary
+ *            $ref: '#/components/schemas/CreatePostRequest'
  *    responses:
  *      201:
  *        description: Post created successfully
  *        content:
  *          application/json:
  *            schema:
- *              type: object
- *              properties:
- *                id:
- *                  type: string
- *                imageUrl:
- *                  type: string
- *                caption:
- *                  type: string
- *                location:
- *                  type: string
- *                isPinned:
- *                  type: boolean
+ *              $ref: '#/components/schemas/Post'
  *      401:
  *        description: Unauthorized
  *  get:
@@ -64,34 +40,7 @@ import { AuthRequest } from '../middleware/authMiddleware';
  *            schema:
  *              type: array
  *              items:
- *                type: object
- *                properties:
- *                  id:
- *                    type: string
- *                  imageUrl:
- *                    type: string
- *                  caption:
- *                    type: string
- *                  location:
- *                    type: string
- *                  isPinned:
- *                    type: boolean
- *                  createdAt:
- *                    type: string
- *                  author:
- *                    type: object
- *                    properties:
- *                      username:
- *                        type: string
- *                      displayName:
- *                        type: string
- *                  _count:
- *                    type: object
- *                    properties:
- *                      likes:
- *                        type: integer
- *                      comments:
- *                        type: integer
+ *                $ref: '#/components/schemas/Post'
 */
 export const createPost = async (req: AuthRequest, res: Response) => {
     const { userId } = req.user!;
@@ -118,37 +67,57 @@ export const createPost = async (req: AuthRequest, res: Response) => {
 };
 
 export const getFeed = async (req: AuthRequest, res: Response) => {
-    const { userId } = req.user!;
-
     try {
-        // 1. Get the IDs of everyone you follow
+        const { userId } = req.user!;
+
+        // 1. Get the list of people the user follows
         const following = await prisma.follow.findMany({
             where: { followerId: userId },
             select: { followingId: true }
         });
 
+        // 2. Extract just the IDs into an array
         const followingIds = following.map(f => f.followingId);
 
-        // 2. Add your own ID to the list so you see your own posts too
-        const authorIds = [...followingIds, userId];
-
-        // 3. Filter the feed
+        // 3. Query posts where author is in followingIds OR is the user themselves
         const posts = await prisma.post.findMany({
             where: {
-                authorId: { in: authorIds }
+                OR: [
+                    { authorId: { in: followingIds } },
+                    { authorId: userId }
+                ]
             },
-            orderBy: [
-                { isPinned: 'desc' },
-                { createdAt: 'desc' }
-            ],
+            orderBy: { createdAt: 'desc' },
             include: {
-                author: { select: { username: true, displayName: true, avatarUrl: true } },
-                _count: { select: { likes: true, comments: true } }
+                author: {
+                    select: {
+                        username: true,
+                        displayName: true,
+                        avatarUrl: true,
+                    }
+                },
+                likes: {
+                    where: { userId: userId },
+                    select: { userId: true }
+                },
+                _count: {
+                    select: {
+                        likes: true,
+                        comments: true
+                    }
+                }
             }
         });
-        res.json(posts);
+
+        const postsWithLikeStatus = posts.map(post => ({
+            ...post,
+            isLikedByUser: post.likes.length > 0
+        }));
+
+        res.status(200).json(postsWithLikeStatus);
     } catch (error) {
-        res.status(500).json({ error: 'Failed to fetch personalized feed' });
+        console.error("Feed error:", error);
+        res.status(500).json({ error: "Failed to fetch feed" });
     }
 };
 
@@ -156,34 +125,39 @@ export const getFeed = async (req: AuthRequest, res: Response) => {
  * @openapi 
  * /api/posts/{postId}:
  *  patch:
- *    summary: Edit a post (Caption, Location, or Pin status)
+ *    summary: Update a post (Chelfie)
  *    tags:
  *      - Feed
  *    security:
  *      - bearerAuth: []
  *    parameters:
- *      - in: path
- *        name: postId
+ *      - name: postId
+ *        in: path
  *        required: true
+ *        description: The unique ID of the post to update
  *        schema:
  *          type: string
  *    requestBody:
+ *      required: true
  *      content:
  *        application/json:
  *          schema:
- *            type: object
- *            properties:
- *              caption:
- *                type: string
- *              location:
- *                type: string
- *              isPinned:
- *                type: boolean
+ *            $ref: '#/components/schemas/UpdatePostRequest'
  *    responses:
  *      200:
  *        description: Post updated successfully
+ *        content:
+ *          application/json:
+ *            schema:
+ *              $ref: '#/components/schemas/Post'
+ *      400:
+ *        description: Invalid input or missing Post ID
  *      403:
- *        description: Forbidden - You don't own this post 
+ *        description: Unauthorized (You are not the author of this post)
+ *      404:
+ *        description: Post not found
+ *      500:
+ *        description: Server error
  */
 
 export const updatePost = async (req: AuthRequest, res: Response) => {
@@ -191,35 +165,50 @@ export const updatePost = async (req: AuthRequest, res: Response) => {
     const { caption, location, isPinned } = req.body;
     const { userId } = req.user!;
 
-    if (!postId) {
-        return res.status(400).json({ error: "Post ID is required" });
-    }
+    if (!postId) return res.status(400).json({ error: "Post ID is required" });
 
     try {
-        // 1. Find post and verify ownership
-        const post = await prisma.post.findUnique({
-            where: { id: postId }
-        });
+        // 1. Verify ownership (remains the same)
+        const post = await prisma.post.findUnique({ where: { id: postId } });
+        if (!post) return res.status(404).json({ error: "Post not found" });
+        if (post.authorId !== userId) return res.status(403).json({ error: "Unauthorized" });
 
-        if (!post) {
-            return res.status(404).json({ error: "Post not found" });
-        }
-
-        if (post.authorId !== userId) {
-            return res.status(403).json({ error: "Unauthorized to edit this post" });
-        }
-
-        // 2. Update with the fresh data
+        // 2. Update and INCLUDE the data the frontend expects
         const updatedPost = await prisma.post.update({
             where: { id: postId },
             data: {
                 caption: caption !== undefined ? caption : post.caption,
                 location: location !== undefined ? location : post.location,
                 isPinned: isPinned !== undefined ? isPinned : post.isPinned
+            },
+            include: {
+                author: {
+                    select: {
+                        username: true,
+                        displayName: true,
+                        avatarUrl: true,
+                    }
+                },
+                likes: {
+                    where: { userId: userId },
+                    select: { userId: true }
+                },
+                _count: {
+                    select: {
+                        likes: true,
+                        comments: true
+                    }
+                }
             }
         });
 
-        res.json(updatedPost);
+        // 3. Transform to include the isLikedByUser boolean for the frontend
+        const result = {
+            ...updatedPost,
+            isLikedByUser: updatedPost.likes.length > 0
+        };
+
+        res.json(result);
     } catch (error) {
         console.error("UPDATE POST ERROR:", error);
         res.status(500).json({ error: "Failed to update post" });
@@ -263,5 +252,88 @@ export const deletePost = async (req: AuthRequest, res: Response) => {
         res.json({ message: "Post deleted successfully" });
     } catch (error) {
         res.status(500).json({ error: "Failed to delete post" });
+    }
+};
+
+/**
+ * @openapi
+ * /api/posts/user/{username}:
+ *    get:
+ *      summary: Get all posts for a specific user (supports Grid and Feed views)
+ *      tags:
+ *        - Feed
+ *      parameters:
+ *        - name: username
+ *          in: path
+ *          required: true
+ *          description: The username of the user whose grid posts are being requested.
+ *          schema:
+ *            type: string
+ *            example: "testUser"
+ *      responses:
+ *        '200':
+ *          description: A list of posts formatted for both grid and full feed display.
+ *          content:
+ *            application/json:
+ *              schema:
+ *                type: array
+ *                items:
+ *                  $ref: '#/components/schemas/Post'
+ *        '401':
+ *          description: Unauthorized. Missing or invalid token.
+ *        '404':
+ *          description: User not found.
+ *        '500':
+ *          description: Internal server error.
+ */
+export const getUserPosts = async (req: AuthRequest, res: Response) => {
+    const { username } = req.params;
+    const userId = req.user?.userId; // Get current user ID if available for like status
+
+    try {
+        const posts = await prisma.post.findMany({
+            where: {
+                author: { username: username as string }
+            },
+            // 1. Sort by Pinned first, then by Date
+            orderBy: [
+                { isPinned: 'desc' },
+                { createdAt: 'desc' }
+            ],
+            select: {
+                id: true,
+                imageUrl: true,
+                caption: true,
+                location: true,
+                isPinned: true, // Need this for the UI
+                createdAt: true,
+                author: {
+                    select: {
+                        username: true,
+                        displayName: true,
+                        avatarUrl: true
+                    }
+                },
+                // Include likes for the current user to keep PostCard consistent
+                likes: userId ? {
+                    where: { userId },
+                    select: { userId: true }
+                } : false,
+                _count: {
+                    select: { likes: true, comments: true }
+                }
+            }
+        });
+
+        // 2. Map results to include isLikedByUser boolean
+        const postsWithStatus = posts.map(post => ({
+            ...post,
+            isLikedByUser: Array.isArray(post.likes) ? post.likes.length > 0 : false
+        }));
+
+        res.status(200).json(postsWithStatus);
+    } catch (error) {
+        console.error("GET USER POSTS ERROR:", error);
+        res.status(500).json({ error: "Error fetching user posts" });
     }
 };
