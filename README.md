@@ -1,34 +1,91 @@
-# Chelinstagram 📸
+# 📸 Chelinstagram
 
-**Chelinstagram** is a lightweight, personalized social media platform designed as a digital scrapbook and media-sharing application. Built with a focus on high-performance media delivery and a custom-branded user experience.
+**Chelinstagram** is a high-performance, mobile-first social networking platform built for private sharing and intimate connections. Designed as a tribute to privacy and speed, it allows users to share "Chelfies," engage in secure chats, and manage a personalized social grid.
 
-## 🚀 Key Features
+**Mastermind & Lead Architect:** [Abraham Meza](https://www.google.com/search?q=https://github.com/Sciodesk)
 
-- **The "Chelfie" Feed:** A curated feed of photos from followed users, filtered to keep your circle private.
-- **Upload Chelfie:** A custom media upload flow supporting high-quality images with location tagging and "Wageningen" metadata.
-- **Personalized Profiles:** Custom avatars, professional bios, and real-time follower/following statistics.
-- **Pinned Content:** A priority system that keeps special memories at the top of the feed for storytelling.
-- **Social Interaction:** Full support for likes, nested comments, and discovery via user search.
-- **Direct Messaging:** A complete chat system with conversation threading and last-message previews.
+---
 
-## 🛠 Tech Stack
+## ⚡ Tech Stack
 
-- **Frontend:** React, TypeScript, TailwindCSS (Development Pending)
-- **Backend:** Node.js, Express, TypeScript
-- **Database:** PostgreSQL
-- **ORM:** Prisma
-- **Media Storage:** Local Filesystem (Multer) / Configurable for Cloudinary
-- **Authentication:** JWT-based secure authentication
+### Frontend (`chelinstagram-frontend`)
 
-## 🏗 System Architecture
+- **React 19 & Vite 7:** Utilizing the latest Concurrent Mode features and ultra-fast HMR.
+- **Tailwind CSS 4:** Modern utility-first styling with the new `@tailwindcss/vite` plugin.
+- **Redux Toolkit:** Advanced state management with DevTools integration.
+- **RxJS & Lodash:** For complex data streams and utility-belt performance.
+- **FontAwesome 7:** Comprehensive iconography for a premium feel.
+- **React Router 7:** Handling nested layouts and dynamic viewport transitions.
 
-The project follows a decoupled architecture where the Node.js API manages business logic and database interactions, serving a responsive React frontend.
+### Backend (`chelinstagram-backend`)
 
-### Core Logic: The "Pinned" Algorithm
+- **Express 5:** Running on the latest major version for optimized middleware handling.
+- **Prisma 7 & PostgreSQL:** Type-safe database management with a focus on relational integrity.
+- **Multer:** Handling high-resolution "Chelfie" uploads.
+- **JWT & Bcrypt:** Industrial-grade authentication and password hashing.
+- **Swagger (OpenAPI 3.0):** Complete API documentation and automated type generation.
 
-The feed uses a priority-sorting algorithm to ensure that "Pinned" posts appear first, followed by a chronological sort of remaining content.
+---
 
-```sql
--- Conceptual logic for the feed query
-ORDER BY isPinned DESC, createdAt DESC
+## 🗺️ Application Map
+
+### Frontend Pages
+
+- **`LoginPage`**: Secure entry point.
+- **`HomePage`**: The main "Following" feed.
+- **`CreateChelfiePage`**: Multi-part form for new post creation with image uploads.
+- **`SearchPage`**: Global user discovery and exploration.
+- **`ProfileGridPage`**: 3-column user grid featuring **Pinned Chelfies**.
+- **`ProfileFeedPage`**: Vertical deep-dive into a user's content.
+- **`FollowersPage`**: Management of followers and following relationships.
+- **`ChatListPage`**: Private message inbox with real-time previews.
+- **`ChatRoomPage`**: Immersive fixed-viewport messaging interface.
+- **`SettingsPage`**: Profile customization and account management.
+
+---
+
+## 📡 API Reference & Controllers
+
+The backend is fully documented via **Swagger UI** available at `/api-docs`.
+
+### Core Endpoints
+
+| Category   | Method  | Endpoint                  | Description                             |
+| ---------- | ------- | ------------------------- | --------------------------------------- |
+| **Auth**   | `POST`  | `/api/auth/login`         | Secure user authentication              |
+| **Chat**   | `GET`   | `/api/chat/conversations` | Fetch user inbox                        |
+| **Chat**   | `POST`  | `/api/chat/start`         | Start/Find a conversation               |
+| **Posts**  | `GET`   | `/api/posts`              | Privacy-filtered "Following" feed       |
+| **Posts**  | `PATCH` | `/api/posts/:postId`      | Update caption, location, or pin status |
+| **Users**  | `POST`  | `/api/users/follow`       | Toggle follow relationship              |
+| **Search** | `GET`   | `/api/users/search`       | Search users by username/display name   |
+
+---
+
+## 🛠️ Development & Type Safety
+
+This project prioritizes a **Schema-First** approach. The frontend types are automatically generated from the backend Swagger specification to ensure zero-mismatch between data structures.
+
+### Type Generation Command
+
+To sync the frontend types with the backend schemas, run:
+
+```bash
+npx swagger-typescript-api generate -p http://localhost:3001/api-docs-json -o ./src/types/schema.d.ts -n file --no-client --generate-union-enums
+
 ```
+
+### Backend Scripts
+
+- `npm run dev`: Start development server with `tsx` watching.
+- `npm run db:migrate`: Sync database schema and generate Prisma client.
+- `npm run db:seed`: Populate the database with initial developer data.
+- `npm run db:studio`: Visual interface for the PostgreSQL database.
+
+---
+
+## 🎨 Layout Philosophy
+
+The project implements a **Fixed Viewport Architecture**. By utilizing a specialized `Layout` component and `h-dvh` (Dynamic Viewport Height) containers, we ensure that the navigation and headers remain stationary while individual pages handle their internal scrolling—creating a native-app experience on mobile browsers.
+
+---
