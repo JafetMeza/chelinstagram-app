@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCloud, faSun, faCloudRain, faSnowflake, faCloudSun } from '@fortawesome/free-solid-svg-icons';
 
-const API_KEY = "1c0f3d402bb13e9260034643db179b1f"; // 👈 Get yours at openweathermap.org
 
 const BridgeWidget = () => {
     const [times, setTimes] = useState({ gdl: "", wag: "" });
@@ -22,6 +21,7 @@ const BridgeWidget = () => {
     };
 
     const fetchWeather = useCallback(async () => {
+        const API_KEY = import.meta.env.VITE_WEATHER_API_KEY;
         // Precise coordinates to avoid name conflicts
         const gdl = { lat: 20.6597, lon: -103.3496 };
         const wag = { lat: 51.9700, lon: 5.6667 };
