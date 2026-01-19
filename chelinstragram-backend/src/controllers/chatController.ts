@@ -4,6 +4,58 @@ import { AuthRequest } from '../middleware/authMiddleware';
 
 /**
  * @openapi
+ * /api/chat/conversations/{conversationId}:
+ *  get:
+ *    summary: Get all messages for a specific conversation
+ *    tags:
+ *      - Chat
+ *    security:
+ *      - bearerAuth: []
+ *    parameters:
+ *      - name: conversationId
+ *        in: path
+ *        required: true
+ *        description: The ID of the conversation
+ *        schema:
+ *          type: string
+ *    responses:
+ *      200:
+ *        description: List of messages for the conversation
+ *        content:
+ *          application/json:
+ *            schema:
+ *              type: array
+ *              items:
+ *                $ref: '#/components/schemas/Message'
+ *      401:
+ *        description: Unauthorized
+ *      404:
+ *        description: Conversation not found
+ *      500:
+ *        description: Failed to fetch messages
+ */
+export const getMessages = async (req: AuthRequest, res: Response) => {
+    const { conversationId } = req.params; // Conversation ID
+
+    try {
+        const messages = await prisma.message.findMany({
+            where: { conversationId: conversationId as string },
+            include: {
+                sender: {
+                    select: { id: true, username: true, displayName: true, avatarUrl: true }
+                }
+            },
+            orderBy: { createdAt: 'asc' } // Oldest to newest for the chat UI
+        });
+
+        res.json(messages);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch messages' });
+    }
+};
+
+/**
+ * @openapi
  * /api/chat/conversations:
  *  get:
  *    summary: Get inbox (conversations with last message preview)
@@ -195,6 +247,63 @@ export const startConversation = async (req: AuthRequest, res: Response) => {
         res.status(200).json(conversation);
     } catch (error) {
         res.status(500).json({ error: 'Failed to start conversation' });
+    }
+};
+/**
+ * @openapi
+ * /api/chat/conversations/{conversationId}:
+ *     delete:
+ *       summary: Delete a conversation and all its messages
+ *       tags:
+ *         - Chat
+ *       security:
+ *         - bearerAuth: []
+ *       parameters:
+ *         - name: conversationId
+ *           in: path
+ *           required: true
+ *           schema:
+ *             type: string
+ *       responses:
+ *         204:
+ *           description: Successfully deleted
+ *         403:
+ *           description: Not a participant of this conversation
+ *         500:
+ *           description: Server error
+*/
+export const deleteConversation = async (req: AuthRequest, res: Response) => {
+    const { userId } = req.user!;
+    const { conversationId } = req.params;
+
+    try {
+        // 1. Verify the requester is actually in this conversation
+        const isParticipant = await prisma.participant.findUnique({
+            where: {
+                conversationId_userId: {
+                    conversationId: conversationId as string,
+                    userId: userId
+                }
+            }
+        });
+
+        if (!isParticipant) {
+            return res.status(403).json({ error: "You don't have permission to delete this conversation" });
+        }
+
+        // 2. Perform deletion in a transaction
+        // Note: If your Prisma schema has `onDelete: Cascade` on the relations, 
+        // you only need the last line. If not, this order is required:
+        await prisma.$transaction([
+            prisma.message.deleteMany({ where: { conversationId: conversationId as string } }),
+            prisma.participant.deleteMany({ where: { conversationId: conversationId as string } }),
+            prisma.conversation.delete({ where: { id: conversationId as string } }),
+        ]);
+
+        res.status(204).send();
+    } catch (error) {
+        console.error('Delete error:', error);
+        res.status(500).json({ error: 'Failed to delete conversation' });
     }
 };
 

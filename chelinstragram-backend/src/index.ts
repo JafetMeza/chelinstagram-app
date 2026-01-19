@@ -3,7 +3,7 @@ import swaggerUi from 'swagger-ui-express';
 import swaggerJsdoc from 'swagger-jsdoc';
 import { authenticateToken } from './middleware/authMiddleware';
 import { login } from './controllers/authController';
-import { getConversation, sendMessage, startConversation } from "./controllers/chatController";
+import { deleteConversation, getConversation, getMessages, sendMessage, startConversation } from "./controllers/chatController";
 import multer from "multer";
 import { createPost, deletePost, getFeed, getUserPosts, updatePost } from "./controllers/feedController";
 import path from 'path';
@@ -96,9 +96,11 @@ app.get('/api-docs-json', (req, res) => {
 app.post('/api/auth/login', login);
 
 // Chat Routes
+app.get('/api/chat/conversations/:conversationId', authenticateToken, getMessages);
 app.get('/api/chat/conversations', authenticateToken, getConversation);
 app.post('/api/chat/messages', authenticateToken, sendMessage);
 app.post('/api/chat/start', authenticateToken, startConversation);
+app.delete('/api/chat/conversations/:conversationId', authenticateToken, deleteConversation);
 
 // IMPORTANT: This allows your browser to see the images via URL
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));

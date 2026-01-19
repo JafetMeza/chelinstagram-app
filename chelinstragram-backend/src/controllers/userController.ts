@@ -313,6 +313,7 @@ export const getFollowers = async (req: AuthRequest, res: Response) => {
             select: {
                 follower: {
                     select: {
+                        id: true,
                         username: true,
                         displayName: true,
                         avatarUrl: true
@@ -360,6 +361,7 @@ export const getFollowing = async (req: AuthRequest, res: Response) => {
             select: {
                 following: {
                     select: {
+                        id: true,
                         username: true,
                         displayName: true,
                         avatarUrl: true

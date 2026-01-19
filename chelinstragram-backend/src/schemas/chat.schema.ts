@@ -1,4 +1,13 @@
 export const chatSchemas = {
+    Participant: {
+        type: 'object',
+        properties: {
+            id: { type: 'string' },
+            userId: { type: 'string' },
+            // This is the actual User data
+            user: { $ref: '#/components/schemas/User' }
+        }
+    },
     Message: {
         type: 'object',
         properties: {
@@ -12,10 +21,12 @@ export const chatSchemas = {
         type: 'object',
         properties: {
             id: { type: 'string' },
+            createdAt: { type: 'string', format: 'date-time' },
             updatedAt: { type: 'string', format: 'date-time' },
             participants: {
                 type: 'array',
-                items: { $ref: '#/components/schemas/User' }
+                // FIXED: Now points to the Participant join table schema
+                items: { $ref: '#/components/schemas/Participant' }
             },
             messages: {
                 type: 'array',
