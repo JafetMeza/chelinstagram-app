@@ -2,7 +2,7 @@
 
 **Chelinstagram** is a high-performance, mobile-first social networking platform built for private sharing and intimate connections. Designed as a tribute to privacy and speed, it allows users to share "Chelfies," engage in secure chats, and manage a personalized social grid.
 
-**Mastermind & Lead Architect:** [Abraham Meza](https://www.google.com/search?q=https://github.com/Sciodesk)
+**Mastermind & Lead Architect:** [Abraham Meza](https://github.com/JafetMeza)
 
 ---
 
