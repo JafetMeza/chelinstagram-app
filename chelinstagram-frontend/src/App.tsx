@@ -11,6 +11,8 @@ import ProfileGridPage from "./pages/profileGridPage";
 import ProfileFeedPage from "./pages/profileFeedPage";
 import SettingsPage from "./pages/settingsPage";
 import FollowersPage from "./pages/followersPage";
+import ChatListPage from "./pages/chatListPage";
+import ChatRoomPage from "./pages/chatRoomPage";
 
 function App() {
 
@@ -27,6 +29,8 @@ function App() {
             <Route path={ROUTES.PROFILE_FEED_PATH} element={<ProfileFeedPage />} />
             <Route path={ROUTES.SETTINGS} element={<SettingsPage />} />
             <Route path={ROUTES.FOLLOWERS_PATH} element={<FollowersPage />} />
+            <Route path={ROUTES.CHAT_LIST} element={<ChatListPage />} />
+            <Route path={ROUTES.CHAT_PATH} element={<ChatRoomPage />} />
           </Route>
         </Routes>
       </AuthenticationProvider>

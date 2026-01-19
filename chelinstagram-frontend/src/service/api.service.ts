@@ -37,6 +37,15 @@ export const GetConversationsApi = async (): Promise<ApiResponse<Conversation[]>
 export const SendMessageApi = async (data: SendMessageRequest): Promise<ApiResponse<Message>> =>
     await fetchMethod<Message>(API_ROUTES.CHAT.MESSAGES, RequestType.POST, data);
 
+export const GetMessagesApi = async (conversationId: string): Promise<ApiResponse<Message[]>> =>
+    await fetchMethod<Message[]>(API_ROUTES.CHAT.CHAT_ROOM(conversationId), RequestType.GET);
+
+export const StartConversationApi = async (recipientId: string): Promise<ApiResponse<Conversation>> =>
+    await fetchMethod<Conversation>(API_ROUTES.CHAT.START, RequestType.POST, { recipientId });
+
+export const DeleteConversationApi = async (conversationId: string): Promise<ApiResponse<void>> =>
+    await fetchMethod<void>(API_ROUTES.CHAT.CHAT_ROOM(conversationId), RequestType.DELETE);
+
 // --- USERS ---
 export const GetMyProfileApi = async (): Promise<ApiResponse<UserProfile>> =>
     await fetchMethod<UserProfile>(API_ROUTES.USERS.PROFILE, RequestType.GET);

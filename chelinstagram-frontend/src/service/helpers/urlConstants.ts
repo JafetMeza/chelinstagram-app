@@ -26,6 +26,7 @@ export const API_ROUTES = {
         CONVERSATIONS: `${UrlHost}/chat/conversations`,
         MESSAGES: `${UrlHost}/chat/messages`,
         START: `${UrlHost}/chat/start`,
+        CHAT_ROOM: (conversationId: string) => `${API_ROUTES.CHAT.CONVERSATIONS}/${conversationId}`,
     },
 
     // Users

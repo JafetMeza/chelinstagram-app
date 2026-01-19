@@ -12,7 +12,7 @@ const Navigation = () => {
         { icon: faHome, label: 'Home', path: ROUTES.HOME },
         { icon: faSearch, label: 'Search', path: ROUTES.EXPLORE },
         { icon: faSquarePlus, label: 'Create', path: ROUTES.CREATE },
-        { icon: faMessage, label: 'Messages', path: ROUTES.CHAT },
+        { icon: faMessage, label: 'Messages', path: ROUTES.CHAT_LIST },
         { icon: faUser, label: 'Profile', path: ROUTES.PROFILE(user?.username ?? "") }, // Example usage
     ];
 

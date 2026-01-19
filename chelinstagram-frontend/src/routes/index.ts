@@ -1,7 +1,9 @@
 export const ROUTES = {
     HOME: '/',
     LOGIN: '/login',
-    CHAT: '/chat',
+    CHAT_LIST: '/chat-list',
+    CHAT_PATH: '/chat/:conversationId',
+    CHAT: (conversationId: string) => `/chat/${conversationId}`,
     EXPLORE: '/explore',
     CREATE: '/create',
     SETTINGS: '/settings',

@@ -62,6 +62,12 @@ export interface AuthResponse {
   user?: User;
 }
 
+export interface Participant {
+  id?: string;
+  userId?: string;
+  user?: User;
+}
+
 export interface Message {
   id?: string;
   content?: string;
@@ -73,8 +79,10 @@ export interface Message {
 export interface Conversation {
   id?: string;
   /** @format date-time */
+  createdAt?: string;
+  /** @format date-time */
   updatedAt?: string;
-  participants?: User[];
+  participants?: Participant[];
   messages?: Message[];
 }
 
