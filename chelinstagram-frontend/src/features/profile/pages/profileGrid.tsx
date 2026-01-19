@@ -7,7 +7,7 @@ import { Post, UserProfile } from "@/types/schema";
 import { ROUTES } from "@/routes";
 import { Url } from "@/service/helpers/urlConstants";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCircleNotch, faLock } from '@fortawesome/free-solid-svg-icons';
+import { faCircleNotch, faLock, faThumbtack } from '@fortawesome/free-solid-svg-icons';
 
 const ProfileGrid = () => {
     const { username } = useParams();
@@ -29,6 +29,12 @@ const ProfileGrid = () => {
             dispatch(GetApi([username], GetUserByUserNameApi));
         }
     }, [username, dispatch]);
+
+    useEffect(() => {
+        if (username && profile?.isFollowing && posts.length === 0) {
+            dispatch(GetApi([username], GetUserPostsApi));
+        }
+    }, [profile?.isFollowing, username, dispatch, posts.length]);
 
     useEffect(() => {
         if (ok) {
@@ -155,13 +161,28 @@ const ProfileGrid = () => {
                                 <div
                                     key={post.id}
                                     onClick={() => navigate(`${ROUTES.PROFILE_FEED(username ?? "")}?post=${post.id}`)}
-                                    className="aspect-square relative cursor-pointer active:opacity-80 transition-opacity bg-zinc-100 dark:bg-zinc-900"
+                                    className="aspect-square relative cursor-pointer active:opacity-80 transition-opacity bg-zinc-100 dark:bg-zinc-900 group"
                                 >
                                     <img
                                         src={post.imageUrl?.startsWith('http') ? post.imageUrl : `${Url}${post.imageUrl}`}
                                         alt=""
                                         className="w-full h-full object-cover"
                                     />
+
+                                    {/* PINNED INDICATOR */}
+                                    {post.isPinned && (
+                                        <div className="absolute top-2 right-2 z-10">
+                                            {/* Shadow/Gradient for visibility */}
+                                            <div className="absolute inset-0 bg-black/20 blur-sm rounded-full" />
+                                            <FontAwesomeIcon
+                                                icon={faThumbtack}
+                                                className="relative text-white text-[10px] -rotate-45 drop-shadow-md"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {/* Optional: Hover effect for desktop */}
+                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors" />
                                 </div>
                             ))}
                         </div>

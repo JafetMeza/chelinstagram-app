@@ -1,4 +1,4 @@
-import { AuthResponse, CommentRequest, Conversation, LoginRequest, Message, Post, SearchUser, SendMessageRequest, UserProfile } from "@/types/schema";
+import { AuthResponse, CommentRequest, Conversation, LoginRequest, Message, Post, SearchUser, SendMessageRequest, UpdatePostRequest, UserProfile } from "@/types/schema";
 import { ApiResponse, RequestType } from "./helpers/serviceConstants";
 import { fetchMethod } from "./helpers/fetchMethod";
 import { API_ROUTES } from "./helpers/urlConstants";
@@ -19,6 +19,9 @@ export const DeletePostApi = async (postId: string): Promise<ApiResponse<void>> 
 
 export const GetUserPostsApi = async (username: string): Promise<ApiResponse<Post[]>> =>
     await fetchMethod<Post[]>(API_ROUTES.POSTS.BY_USER(username), RequestType.GET);
+
+export const UpdatePostApi = async (postId: string, data: UpdatePostRequest): Promise<ApiResponse<Post>> =>
+    await fetchMethod<Post>(API_ROUTES.POSTS.BY_ID(postId), RequestType.PATCH, data);
 
 // --- INTERACTIONS ---
 export const ToggleLikeApi = async (postId: string): Promise<ApiResponse<void>> =>

@@ -1,10 +1,11 @@
 import { Post, Comment } from "@/types/schema";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faHeart as faHeartReg, faComment as faCommentReg } from '@fortawesome/free-regular-svg-icons';
-import { faHeart as faHeartSolid, faXmark } from '@fortawesome/free-solid-svg-icons';
+import { faHeart as faHeartReg, faComment as faCommentReg, faEdit } from '@fortawesome/free-regular-svg-icons';
+import { faEllipsisVertical, faHeart as faHeartSolid, faLocationDot, faThumbtack, faTrash, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { Url } from "@/service/helpers/urlConstants";
 import { ROUTES } from "@/routes";
 import { useNavigate } from "react-router";
+import { useRef, useState } from "react";
 
 interface PostCardProps {
     post: Post;
@@ -16,19 +17,24 @@ interface PostCardProps {
     onOpenComments: (postId: string) => void;
     onCloseComments: () => void;
     disableProfileClick?: boolean;
+    onDelete?: (postId: string) => void;
+    onEdit?: (post: Post) => void;
+    isOwner?: boolean;
 }
 
 const PostCard = ({
     post, isLiked, onToggleLike,
     comments, activePostId, onOpenComments, onCloseComments,
-    disableProfileClick = false
+    disableProfileClick = false,
+    onDelete, onEdit, isOwner
 }: PostCardProps) => {
     const navigate = useNavigate();
     const isShowingComments = activePostId === post.id;
 
-    const fullImageUrl = post.imageUrl?.startsWith('http')
-        ? post.imageUrl
-        : `${Url}${post.imageUrl}`;
+    const [showMenu, setShowMenu] = useState(false);
+    const menuRef = useRef<HTMLDivElement>(null);
+
+    const fullImageUrl = `${Url}${post.imageUrl}`;
 
     // Helper to navigate to profile
     const handleProfileClick = () => {
@@ -39,22 +45,80 @@ const PostCard = ({
 
     return (
         <div className="relative w-full bg-white dark:bg-black border-b border-gray-200 dark:border-zinc-800 pb-4 mb-4 overflow-hidden">
-            {/* Header: User Info */}
+
+            {/* 1. PINNED INDICATOR (Top of card) */}
+            {post.isPinned && (
+                <div className="flex items-center gap-2 px-3 pt-2 text-zinc-400">
+                    <FontAwesomeIcon icon={faThumbtack} className="text-[10px] -rotate-45" />
+                    <span className="text-[10px] font-bold uppercase tracking-wider">Pinned Chelfie</span>
+                </div>
+            )}
+
+            {/* Header: User Info & Context Menu */}
             <div className="flex items-center justify-between p-3">
-                {/* Wrapped in a button for accessibility and navigation */}
-                <button
-                    onClick={handleProfileClick}
-                    className="flex items-center gap-3 active:opacity-60 transition-opacity"
-                >
-                    <img
-                        src={post.author?.avatarUrl ? `${Url}${post.author.avatarUrl}` : '/default-avatar.png'}
-                        alt={post.author?.username}
-                        className="w-8 h-8 rounded-full object-cover border border-gray-200 dark:border-zinc-700"
-                    />
-                    <span className="font-semibold text-sm text-black dark:text-white hover:underline decoration-1">
-                        {post.author?.displayName}
-                    </span>
-                </button>
+                <div className="flex items-center gap-3">
+                    <button onClick={handleProfileClick} className="active:opacity-60 transition-opacity shrink-0">
+                        <img
+                            src={post.author?.avatarUrl ? `${Url}${post.author.avatarUrl}` : '/default-avatar.png'}
+                            alt={post.author?.username}
+                            className="w-8 h-8 rounded-full object-cover border border-gray-200 dark:border-zinc-700"
+                        />
+                    </button>
+
+                    <div className="flex flex-col min-w-0">
+                        <button onClick={handleProfileClick} className="text-left font-semibold text-sm text-black dark:text-white hover:underline decoration-1 truncate">
+                            {post.author?.displayName || post.author?.username}
+                        </button>
+
+                        {/* 2. LOCATION (Re-added here) */}
+                        {post.location && (
+                            <div className="flex items-center gap-1 text-zinc-500 dark:text-zinc-400">
+                                <FontAwesomeIcon icon={faLocationDot} className="text-[10px]" />
+                                <span className="text-[11px] truncate">{post.location}</span>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Context Menu Trigger */}
+                {isOwner && (
+                    <div className="relative" ref={menuRef}>
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setShowMenu(!showMenu);
+                            }}
+                            className="p-2 text-zinc-400 hover:text-black dark:hover:text-white rounded-full transition-all"
+                        >
+                            <FontAwesomeIcon icon={faEllipsisVertical} />
+                        </button>
+
+                        {showMenu && (
+                            <div className="absolute right-0 mt-1 w-32 bg-white dark:bg-zinc-900 border dark:border-zinc-800 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in duration-150">
+                                <button
+                                    onClick={() => {
+                                        onEdit?.(post);
+                                        setShowMenu(false);
+                                    }}
+                                    className="w-full flex items-center gap-3 px-4 py-3 text-xs font-bold hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+                                >
+                                    <FontAwesomeIcon icon={faEdit} className="text-blue-500" />
+                                    Edit
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        onDelete?.(post.id ?? "");
+                                        setShowMenu(false);
+                                    }}
+                                    className="w-full flex items-center gap-3 px-4 py-3 text-xs font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors border-t dark:border-zinc-800"
+                                >
+                                    <FontAwesomeIcon icon={faTrash} />
+                                    Delete
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
 
             {/* Image */}

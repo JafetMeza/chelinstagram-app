@@ -70,7 +70,23 @@ export const getFeed = async (req: AuthRequest, res: Response) => {
     try {
         const { userId } = req.user!;
 
+        // 1. Get the list of people the user follows
+        const following = await prisma.follow.findMany({
+            where: { followerId: userId },
+            select: { followingId: true }
+        });
+
+        // 2. Extract just the IDs into an array
+        const followingIds = following.map(f => f.followingId);
+
+        // 3. Query posts where author is in followingIds OR is the user themselves
         const posts = await prisma.post.findMany({
+            where: {
+                OR: [
+                    { authorId: { in: followingIds } },
+                    { authorId: userId }
+                ]
+            },
             orderBy: { createdAt: 'desc' },
             include: {
                 author: {
@@ -80,14 +96,9 @@ export const getFeed = async (req: AuthRequest, res: Response) => {
                         avatarUrl: true,
                     }
                 },
-                // This checks if the current user is among the people who liked it
                 likes: {
-                    where: {
-                        userId: userId
-                    },
-                    select: {
-                        userId: true
-                    }
+                    where: { userId: userId },
+                    select: { userId: true }
                 },
                 _count: {
                     select: {
@@ -98,7 +109,6 @@ export const getFeed = async (req: AuthRequest, res: Response) => {
             }
         });
 
-        // Map the results to add a simple boolean: "isLikedByUser"
         const postsWithLikeStatus = posts.map(post => ({
             ...post,
             isLikedByUser: post.likes.length > 0
@@ -106,47 +116,48 @@ export const getFeed = async (req: AuthRequest, res: Response) => {
 
         res.status(200).json(postsWithLikeStatus);
     } catch (error) {
+        console.error("Feed error:", error);
         res.status(500).json({ error: "Failed to fetch feed" });
     }
 };
 
 /**
  * @openapi 
- * /api/posts:
- *  get:
- *    summary: Get all feed posts
+ * /api/posts/{postId}:
+ *  patch:
+ *    summary: Update a post (Chelfie)
  *    tags:
  *      - Feed
  *    security:
  *      - bearerAuth: []
- *    responses:
- *      '200':
- *        description: List of posts for the feed
- *        content:
- *          application/json:
- *            schema:
- *              type: array
- *              items:
- *                $ref: '#/components/schemas/Post'
- *  post:
- *    summary: Upload a new photo
- *    tags:
- *      - Feed
- *    security:
- *      - bearerAuth: []
+ *    parameters:
+ *      - name: postId
+ *        in: path
+ *        required: true
+ *        description: The unique ID of the post to update
+ *        schema:
+ *          type: string
  *    requestBody:
  *      required: true
  *      content:
- *        multipart/form-data:
+ *        application/json:
  *          schema:
- *            $ref: '#/components/schemas/CreatePostRequest'
+ *            $ref: '#/components/schemas/UpdatePostRequest'
  *    responses:
- *      '201':
- *        description: Post created successfully
+ *      200:
+ *        description: Post updated successfully
  *        content:
  *          application/json:
  *            schema:
  *              $ref: '#/components/schemas/Post'
+ *      400:
+ *        description: Invalid input or missing Post ID
+ *      403:
+ *        description: Unauthorized (You are not the author of this post)
+ *      404:
+ *        description: Post not found
+ *      500:
+ *        description: Server error
  */
 
 export const updatePost = async (req: AuthRequest, res: Response) => {
@@ -154,35 +165,50 @@ export const updatePost = async (req: AuthRequest, res: Response) => {
     const { caption, location, isPinned } = req.body;
     const { userId } = req.user!;
 
-    if (!postId) {
-        return res.status(400).json({ error: "Post ID is required" });
-    }
+    if (!postId) return res.status(400).json({ error: "Post ID is required" });
 
     try {
-        // 1. Find post and verify ownership
-        const post = await prisma.post.findUnique({
-            where: { id: postId }
-        });
+        // 1. Verify ownership (remains the same)
+        const post = await prisma.post.findUnique({ where: { id: postId } });
+        if (!post) return res.status(404).json({ error: "Post not found" });
+        if (post.authorId !== userId) return res.status(403).json({ error: "Unauthorized" });
 
-        if (!post) {
-            return res.status(404).json({ error: "Post not found" });
-        }
-
-        if (post.authorId !== userId) {
-            return res.status(403).json({ error: "Unauthorized to edit this post" });
-        }
-
-        // 2. Update with the fresh data
+        // 2. Update and INCLUDE the data the frontend expects
         const updatedPost = await prisma.post.update({
             where: { id: postId },
             data: {
                 caption: caption !== undefined ? caption : post.caption,
                 location: location !== undefined ? location : post.location,
                 isPinned: isPinned !== undefined ? isPinned : post.isPinned
+            },
+            include: {
+                author: {
+                    select: {
+                        username: true,
+                        displayName: true,
+                        avatarUrl: true,
+                    }
+                },
+                likes: {
+                    where: { userId: userId },
+                    select: { userId: true }
+                },
+                _count: {
+                    select: {
+                        likes: true,
+                        comments: true
+                    }
+                }
             }
         });
 
-        res.json(updatedPost);
+        // 3. Transform to include the isLikedByUser boolean for the frontend
+        const result = {
+            ...updatedPost,
+            isLikedByUser: updatedPost.likes.length > 0
+        };
+
+        res.json(result);
     } catch (error) {
         console.error("UPDATE POST ERROR:", error);
         res.status(500).json({ error: "Failed to update post" });
@@ -235,7 +261,7 @@ export const deletePost = async (req: AuthRequest, res: Response) => {
  *    get:
  *      summary: Get all posts for a specific user (supports Grid and Feed views)
  *      tags:
- *        - Posts
+ *        - Feed
  *      parameters:
  *        - name: username
  *          in: path
@@ -262,34 +288,52 @@ export const deletePost = async (req: AuthRequest, res: Response) => {
  */
 export const getUserPosts = async (req: AuthRequest, res: Response) => {
     const { username } = req.params;
+    const userId = req.user?.userId; // Get current user ID if available for like status
 
     try {
         const posts = await prisma.post.findMany({
             where: {
                 author: { username: username as string }
             },
-            orderBy: { createdAt: 'desc' },
+            // 1. Sort by Pinned first, then by Date
+            orderBy: [
+                { isPinned: 'desc' },
+                { createdAt: 'desc' }
+            ],
             select: {
                 id: true,
                 imageUrl: true,
-                caption: true,   // Added for the full feed view
-                location: true,  // Added for the full feed view
-                createdAt: true, // Added for the full feed view
-                author: {        // Added so PostCard knows who the author is
+                caption: true,
+                location: true,
+                isPinned: true, // Need this for the UI
+                createdAt: true,
+                author: {
                     select: {
                         username: true,
                         displayName: true,
                         avatarUrl: true
                     }
                 },
+                // Include likes for the current user to keep PostCard consistent
+                likes: userId ? {
+                    where: { userId },
+                    select: { userId: true }
+                } : false,
                 _count: {
                     select: { likes: true, comments: true }
                 }
             }
         });
 
-        res.status(200).json(posts);
+        // 2. Map results to include isLikedByUser boolean
+        const postsWithStatus = posts.map(post => ({
+            ...post,
+            isLikedByUser: Array.isArray(post.likes) ? post.likes.length > 0 : false
+        }));
+
+        res.status(200).json(postsWithStatus);
     } catch (error) {
+        console.error("GET USER POSTS ERROR:", error);
         res.status(500).json({ error: "Error fetching user posts" });
     }
 };
