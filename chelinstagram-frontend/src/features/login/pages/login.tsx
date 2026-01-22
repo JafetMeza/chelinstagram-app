@@ -6,6 +6,10 @@ import { PostApi } from "@/redux/middleware/httpMethod.mid";
 import { LoginApi } from "@/service/api.service";
 import { apiClear } from "@/redux/ducks/apiData";
 import useTheme from "@/components/hooks/useTheme";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faLock } from "@fortawesome/free-solid-svg-icons";
+import { faLightbulb } from "@fortawesome/free-regular-svg-icons";
+import LoginPuzzle from "../components/loginPuzzle";
 
 const LoginPage = () => {
     const { onLogin } = useContext(AuthenticationContext);
@@ -15,6 +19,7 @@ const LoginPage = () => {
     // 1. Destructure errorMessage from your apiData slice
     const { ok, apiMethod, loading, data, errorMessage } = useAppSelector(state => state.apiData);
     const [localError, setLocalError] = useState<string | null>(null);
+    const [showHintModal, setShowHintModal] = useState(false);
 
     useEffect(() => {
         if (apiMethod === LoginApi.name) {
@@ -51,7 +56,12 @@ const LoginPage = () => {
 
     return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-white dark:bg-black p-4 transition-colors duration-300">
-            <div className="w-full max-w-sm border border-gray-300 dark:border-zinc-800 bg-white dark:bg-black p-10 flex flex-col items-center rounded-sm shadow-sm">
+            <div className="w-full max-w-sm border border-gray-300 dark:border-zinc-800 bg-white dark:bg-black p-10 flex flex-col items-center rounded-sm shadow-sm relative overflow-hidden">
+
+                {/* Decorative Vault Icon */}
+                <div className="mb-4 text-zinc-200 dark:text-zinc-800">
+                    <FontAwesomeIcon icon={faLock} size="2x" />
+                </div>
 
                 <h1 className="text-4xl font-semibold mb-8 italic font-serif text-black dark:text-white">
                     Chelinstagram
@@ -96,9 +106,24 @@ const LoginPage = () => {
                     </button>
                 </form>
 
-                <div className="mt-8">
-                    <p className="text-xs text-gray-400 dark:text-zinc-500 text-center">
-                        Private access for Abraham & Chela
+                {/* PERMANENT HINT BUTTON */}
+                <button
+                    onClick={() => setShowHintModal(true)}
+                    className="mt-6 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-zinc-400 hover:text-blue-500 transition-colors"
+                >
+                    <FontAwesomeIcon icon={faLightbulb} className="text-[12px]" />
+                    Get Combination Hint
+                </button>
+
+                {/* THE PUZZLE COMPONENT */}
+                <LoginPuzzle
+                    isOpen={showHintModal}
+                    onClose={() => setShowHintModal(false)}
+                />
+
+                <div className="mt-8 border-t dark:border-zinc-800 pt-6 w-full">
+                    <p className="text-[10px] text-gray-400 dark:text-zinc-500 text-center uppercase tracking-tighter">
+                        Private Vault for Abraham & Chela
                     </p>
                 </div>
             </div>
