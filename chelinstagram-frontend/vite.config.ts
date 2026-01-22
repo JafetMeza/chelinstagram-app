@@ -16,5 +16,6 @@ export default defineConfig({
       "ui": path.resolve(__dirname, "./src/components/ui"),
       "images": path.resolve(__dirname, "./src/assets/images"),
     }
-  }
+  },
+  base: "/"
 });
