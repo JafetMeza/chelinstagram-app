@@ -1,4 +1,4 @@
-export const Url = "http://localhost:3001";
+export const Url = import.meta.env.VITE_API_URL;
 export const UrlHost = `${Url}/api`;
 
 export const API_ROUTES = {
