@@ -6,11 +6,15 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faImage, faChevronLeft, faMapMarkerAlt, faCircleNotch } from '@fortawesome/free-solid-svg-icons';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from "@/routes";
+import { Url } from "@/service/helpers/urlConstants";
+import { processToSquare } from "../lib/imageProcessing";
 
 const CreateChelfie = () => {
     const dispatch = useAppDispatch();
     const navigate = useNavigate();
     const { loading, apiMethod, ok } = useAppSelector(state => state.apiData);
+    const { user } = useAppSelector(state => state.authData);
+    const theme = useAppSelector(state => state.theme);
 
     const [file, setFile] = useState<File | null>(null);
     const [preview, setPreview] = useState<string | null>(null);
@@ -25,11 +29,22 @@ const CreateChelfie = () => {
     }, [ok, apiMethod, navigate]);
 
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const selectedFile = e.target.files?.[0];
         if (selectedFile) {
-            setFile(selectedFile);
-            setPreview(URL.createObjectURL(selectedFile));
+            try {
+                // Show a temporary loading state if you want
+                const isDarkMode = theme === "dark";
+                const processedBlob = await processToSquare(selectedFile, isDarkMode);
+
+                // Create a new File object from the blob to keep the naming
+                const squareFile = new File([processedBlob], selectedFile.name, { type: 'image/jpeg' });
+
+                setFile(squareFile);
+                setPreview(URL.createObjectURL(processedBlob));
+            } catch (error) {
+                console.error("Error processing image", error);
+            }
         }
     };
 
@@ -90,14 +105,18 @@ const CreateChelfie = () => {
                 ) : (
                     /* Step 2: Caption & Preview */
                     <div className="animate-in fade-in slide-in-from-right duration-300">
-                        <div className="w-full aspect-square bg-gray-100 dark:bg-zinc-900">
-                            <img src={preview} className="w-full h-full object-cover" alt="Preview" />
+                        <div className="w-full aspect-square bg-black flex items-center justify-center">
+                            <img
+                                src={preview}
+                                className="w-full h-full object-contain" // Changed from cover to contain
+                                alt="Preview"
+                            />
                         </div>
 
                         <div className="p-4 flex flex-col gap-4 border-b border-gray-100 dark:border-zinc-800">
                             <div className="flex gap-4">
                                 <img
-                                    src="/default-avatar.png"
+                                    src={`${Url}${user?.avatarUrl ?? ""}`}
                                     className="w-10 h-10 rounded-full object-cover"
                                     alt="User"
                                 />
