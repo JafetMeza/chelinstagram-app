@@ -8,7 +8,7 @@ const initialState: AuthResponse = {
     username: "",
     email: "",
     displayName: "",
-    avatar: ""
+    avatarUrl: ""
   }
 };
 
