@@ -10,11 +10,18 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faLock } from "@fortawesome/free-solid-svg-icons";
 import { faLightbulb } from "@fortawesome/free-regular-svg-icons";
 import LoginPuzzle from "../components/loginPuzzle";
+import { setTheme } from "@/redux/ducks/theme";
 
 const LoginPage = () => {
     const { onLogin } = useContext(AuthenticationContext);
     const dispatch = useAppDispatch();
     useTheme();
+
+    useEffect(() => {
+        dispatch(setTheme("dark"));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
 
     // 1. Destructure errorMessage from your apiData slice
     const { ok, apiMethod, loading, data, errorMessage } = useAppSelector(state => state.apiData);
@@ -24,7 +31,6 @@ const LoginPage = () => {
     useEffect(() => {
         if (apiMethod === LoginApi.name) {
             if (ok) {
-                // eslint-disable-next-line react-hooks/set-state-in-effect
                 setLocalError(null);
                 const authResponse = data as AuthResponse;
                 onLogin(authResponse);
