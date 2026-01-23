@@ -20,7 +20,7 @@ export const uploadImageToSupabase = async (file: Express.Multer.File): Promise<
 
     // 2. Upload to your bucket (named 'photos')
     const { data, error } = await supabase.storage
-        .from('photos')
+        .from('chelinstagram-images')
         .upload(filePath, file.buffer, {
             contentType: file.mimetype,
             upsert: false
@@ -33,7 +33,7 @@ export const uploadImageToSupabase = async (file: Express.Multer.File): Promise<
 
     // 3. Get the Public URL
     const { data: { publicUrl } } = supabase.storage
-        .from('photos')
+        .from('chelinstagram-images')
         .getPublicUrl(filePath);
 
     return publicUrl;
