@@ -83,6 +83,7 @@ app.get('/api-docs-json', (req, res) => {
     res.send(swaggerSpec);
 });
 
+// -------------------- API ROUTES -----------------------------------
 // Auth Route
 app.post('/api/auth/login', login);
 
