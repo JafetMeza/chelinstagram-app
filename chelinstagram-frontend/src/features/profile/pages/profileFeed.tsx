@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { GetApi, PostApi } from "@/redux/middleware/httpMethod.mid";
-import { GetUserPostsApi, ToggleLikeApi, GetCommentsApi, DeletePostApi, UpdatePostApi } from "@/service/api.service";
-import { Post, Comment, UpdatePostRequest } from "@/types/schema";
+import { GetUserPostsApi, ToggleLikeApi, GetCommentsApi, DeletePostApi, UpdatePostApi, AddCommentApi } from "@/service/api.service";
+import { Post, Comment, UpdatePostRequest, CommentRequest } from "@/types/schema";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronLeft } from '@fortawesome/free-solid-svg-icons';
 import PostCard from "@/features/home/components/postCard";
@@ -109,6 +109,29 @@ const ProfileFeedPage = () => {
         setIsPinned(post.isPinned || false);
     };
 
+    const handleAddComment = async (postId: string, content: string) => {
+        // 1. Objeto temporal (usa datos que ya tienes)
+        const newComment: Comment = {
+            id: `temp-${Date.now()}`, // ID temporal para React
+            content,
+            createdAt: new Date().toISOString(),
+            author: {
+                username: currentUser?.username,
+                displayName: currentUser?.displayName
+            }
+        };
+
+        // 2. Actualización instantánea de la UI
+        setComments(prev => [...prev, newComment]);
+
+        const commentRequest: CommentRequest = {
+            postId,
+            content
+
+        };
+        dispatch(PostApi([commentRequest], AddCommentApi));
+    };
+
     return (
         <div className="flex flex-col w-full bg-white dark:bg-black min-h-screen">
             {/* Sticky Header */}
@@ -143,6 +166,7 @@ const ProfileFeedPage = () => {
                             isLiked={post.isLikedByUser ?? false}
                             onToggleLike={handleToggleLike}
                             comments={activePostId === post.id ? comments : []}
+                            onAddComment={handleAddComment}
                             activePostId={activePostId}
                             onOpenComments={handleOpenComments}
                             onCloseComments={() => setActivePostId(null)}
