@@ -7,7 +7,7 @@ import { faImage, faChevronLeft, faMapMarkerAlt, faCircleNotch } from '@fortawes
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from "@/routes";
 import { processToSquare } from "../lib/imageProcessing";
-import { getAvatarSrc } from "@/helpers/imageUtils";
+import { compressAndUpload, getAvatarSrc } from "@/helpers/imageUtils";
 
 const CreateChelfie = () => {
     const dispatch = useAppDispatch();
@@ -28,23 +28,34 @@ const CreateChelfie = () => {
         }
     }, [ok, apiMethod, navigate]);
 
-
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const selectedFile = e.target.files?.[0];
-        if (selectedFile) {
-            try {
-                // Show a temporary loading state if you want
-                const isDarkMode = theme === "dark";
-                const processedBlob = await processToSquare(selectedFile, isDarkMode);
+        if (!selectedFile) return;
 
-                // Create a new File object from the blob to keep the naming
-                const squareFile = new File([processedBlob], selectedFile.name, { type: 'image/jpeg' });
-
-                setFile(squareFile);
-                setPreview(URL.createObjectURL(processedBlob));
-            } catch (error) {
-                console.error("Error processing image", error);
+        try {
+            // 1. Revoke old preview to prevent memory leaks
+            if (preview) {
+                URL.revokeObjectURL(preview);
             }
+
+            const isDarkMode = theme === "dark";
+
+            // 2. Process to Square FIRST (Canvas logic)
+            const squaredBlob = await processToSquare(selectedFile, isDarkMode);
+
+            // Convert Blob to File so the compression utility can read it
+            const squaredFile = new File([squaredBlob], selectedFile.name, { type: 'image/jpeg' });
+
+            // 3. Compress LAST (Final size check before Vercel)
+            const finalCompressedFile = await compressAndUpload(squaredFile);
+
+            // 4. Set state
+            setFile(finalCompressedFile);
+            setPreview(URL.createObjectURL(finalCompressedFile));
+
+        } catch (error) {
+            console.error("Error processing image", error);
+            alert("Oops! Something went wrong while preparing your photo.");
         }
     };
 

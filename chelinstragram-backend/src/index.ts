@@ -6,7 +6,6 @@ import { login } from './controllers/authController';
 import { deleteConversation, getConversation, getMessages, sendMessage, startConversation } from "./controllers/chatController";
 import multer from "multer";
 import { createPost, deletePost, getFeed, getUserPosts, updatePost } from "./controllers/feedController";
-import path from 'path';
 import { addComment, getCommentsByPost, toggleLike } from "./controllers/interactionController";
 import { getProfile, getUserByUserName, searchUsers, updateProfile, toggleFollow, getFollowers, getFollowing } from "./controllers/userController";
 import cors from 'cors';
@@ -17,32 +16,24 @@ import { feedSchemas } from "./schemas/feed.schema";
 import { interactionSchemas } from "./schemas/interaction.schema";
 
 const corsOptions = {
-    origin: 'http://localhost:3000',
+    origin: [
+        'http://localhost:3000', // Local development
+        process.env.FRONTEND_URL as string // Production Vercel URL
+    ].filter(Boolean),
     credentials: true, // Useful if you ever switch to cookies for Auth
 };
 
 const app = express();
 
-// --- MULTER CONFIGURATION START ---
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, 'uploads/'); // Make sure this folder exists in your root
-    },
-    filename: (req, file, cb) => {
-        // Generates a name like: 1705432100-992837.jpg
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        const ext = path.extname(file.originalname);
-        cb(null, uniqueSuffix + ext);
-    }
-});
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
+// --- MULTER CONFIGURATION START ---
+const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 // --- MULTER CONFIGURATION END ---
 
 app.use(cors(corsOptions));
-
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
 // 1. Swagger Definition
 const swaggerOptions = {
@@ -101,9 +92,6 @@ app.get('/api/chat/conversations', authenticateToken, getConversation);
 app.post('/api/chat/messages', authenticateToken, sendMessage);
 app.post('/api/chat/start', authenticateToken, startConversation);
 app.delete('/api/chat/conversations/:conversationId', authenticateToken, deleteConversation);
-
-// IMPORTANT: This allows your browser to see the images via URL
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Post Routes
 app.post('/api/posts', authenticateToken, upload.single('image'), createPost);

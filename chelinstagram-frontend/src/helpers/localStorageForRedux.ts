@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export const loadState = (): any => {
   try {
-    const serializedState = localStorage.getItem("broker-configuration-app");
+    const serializedState = localStorage.getItem("chelinstagram-configuration-app");
     if (serializedState === null) {
       return undefined;
     }
@@ -15,6 +15,6 @@ export const loadState = (): any => {
 export const saveState = (state: object): void => {
   try {
     const serializedState = JSON.stringify(state);
-    localStorage.setItem("broker-configuration-app", serializedState);
+    localStorage.setItem("chelinstagram-configuration-app", serializedState);
   } catch (err) { /* empty */ }
 };

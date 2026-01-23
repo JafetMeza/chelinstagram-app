@@ -6,7 +6,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronLeft, faCamera, faCircleNotch } from '@fortawesome/free-solid-svg-icons';
 import { useNavigate } from 'react-router-dom';
 import { UserProfile } from "@/types/schema";
-import { getAvatarSrc } from "@/helpers/imageUtils";
+import { compressAndUpload, getAvatarSrc } from "@/helpers/imageUtils";
 
 const Settings = () => {
     const dispatch = useAppDispatch();
@@ -26,8 +26,9 @@ const Settings = () => {
 
     // 2. Populate fields when data arrives
     useEffect(() => {
-        if (ok && apiMethod === GetMyProfileApi.name) {
+        if (ok && apiMethod === GetMyProfileApi.name && data) {
             const profile = data as UserProfile;
+            console.log(profile);
             // eslint-disable-next-line react-hooks/set-state-in-effect
             setDisplayName(profile.displayName || "");
             setBio(profile.bio || "");
@@ -39,11 +40,23 @@ const Settings = () => {
         }
     }, [ok, data, apiMethod, navigate]);
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const selectedFile = e.target.files?.[0];
+
         if (selectedFile) {
-            setFile(selectedFile);
-            setPreview(URL.createObjectURL(selectedFile));
+            // 1. If there's an existing preview, revoke it to save memory
+            if (preview) {
+                URL.revokeObjectURL(preview);
+            }
+
+            // 2. Compress the file using your utility
+            const compressedFile = await compressAndUpload(selectedFile);
+
+            // 3. Update state with the small file
+            setFile(compressedFile);
+
+            // 4. Create a new preview URL
+            setPreview(URL.createObjectURL(compressedFile));
         }
     };
 
