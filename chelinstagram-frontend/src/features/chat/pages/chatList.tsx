@@ -6,9 +6,9 @@ import { GetConversationsApi, GetFollowingApi, StartConversationApi, DeleteConve
 import { Conversation, SearchUser, Participant } from "@/types/schema";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSearch, faTrash } from '@fortawesome/free-solid-svg-icons';
-import { Url } from "@/service/helpers/urlConstants";
 import BridgeWidget from "../components/bridgeWidget";
 import ChatSkeleton from "../components/chatSkeleton";
+import { getAvatarSrc } from "@/helpers/imageUtils";
 
 const ChatList = () => {
     const navigate = useNavigate();
@@ -105,7 +105,7 @@ const ChatList = () => {
                         <span className="px-3 text-[10px] font-bold text-zinc-400 uppercase tracking-tight">New Message</span>
                         {filteredFollowing.map(user => (
                             <div key={user.id} onClick={() => handleStartChat(user.id ?? "")} className="flex items-center gap-3 p-3 active:bg-zinc-100 dark:active:bg-zinc-900 rounded-xl mt-1 cursor-pointer">
-                                <img src={user.avatarUrl ? `${Url}${user.avatarUrl}` : '/default-avatar.png'} className="w-11 h-11 rounded-full object-cover border dark:border-zinc-800" />
+                                <img src={getAvatarSrc(user.avatarUrl)} className="w-11 h-11 rounded-full object-cover border dark:border-zinc-800" />
                                 <div className="flex flex-col">
                                     <span className="font-bold text-sm leading-none">@{user.username}</span>
                                     <span className="text-[11px] text-zinc-500 mt-1">{user.displayName}</span>
@@ -125,7 +125,7 @@ const ChatList = () => {
                                     className="group flex items-center gap-3 p-3 active:bg-zinc-100 dark:active:bg-zinc-900 transition-all rounded-xl cursor-pointer relative"
                                 >
                                     <div className="relative shrink-0">
-                                        <img src={partner?.avatarUrl ? `${Url}${partner.avatarUrl}` : '/default-avatar.png'} className="w-14 h-14 rounded-full object-cover border-2 border-transparent" />
+                                        <img src={getAvatarSrc(partner?.avatarUrl)} className="w-14 h-14 rounded-full object-cover border-2 border-transparent" />
                                         <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-white dark:border-black rounded-full" />
                                     </div>
                                     <div className="flex-1 flex flex-col min-w-0">

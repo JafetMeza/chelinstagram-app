@@ -6,7 +6,7 @@ import { GetMessagesApi, SendMessageApi } from "@/service/api.service";
 import { Message, SendMessageRequest } from "@/types/schema";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronLeft, faPaperPlane, faInfoCircle } from '@fortawesome/free-solid-svg-icons';
-import { Url } from "@/service/helpers/urlConstants";
+import { getAvatarSrc } from "@/helpers/imageUtils";
 
 const ChatRoom = () => {
     const { conversationId } = useParams();
@@ -68,7 +68,7 @@ const ChatRoom = () => {
                     </button>
                     <div className="flex items-center gap-2">
                         <img
-                            src={partner?.avatarUrl ? `${Url}${partner.avatarUrl}` : '/default-avatar.png'}
+                            src={getAvatarSrc(partner?.avatarUrl)}
                             className="w-8 h-8 rounded-full object-cover border dark:border-zinc-800"
                         />
                         <span className="font-bold text-sm tracking-tight">{partner?.displayName || partner?.username}</span>

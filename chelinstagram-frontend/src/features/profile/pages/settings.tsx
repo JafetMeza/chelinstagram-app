@@ -5,8 +5,8 @@ import { GetMyProfileApi, UpdateProfileApi } from "@/service/api.service";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronLeft, faCamera, faCircleNotch } from '@fortawesome/free-solid-svg-icons';
 import { useNavigate } from 'react-router-dom';
-import { Url } from "@/service/helpers/urlConstants";
 import { UserProfile } from "@/types/schema";
+import { getAvatarSrc } from "@/helpers/imageUtils";
 
 const Settings = () => {
     const dispatch = useAppDispatch();
@@ -31,7 +31,7 @@ const Settings = () => {
             // eslint-disable-next-line react-hooks/set-state-in-effect
             setDisplayName(profile.displayName || "");
             setBio(profile.bio || "");
-            if (profile.avatarUrl) setPreview(`${Url}${profile.avatarUrl}`);
+            if (profile.avatarUrl) setPreview(getAvatarSrc(profile.avatarUrl));
         }
 
         if (ok && apiMethod === UpdateProfileApi.name) {

@@ -7,8 +7,8 @@ import { SearchUsersApi } from "@/service/api.service";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSearch, faCircleNotch } from '@fortawesome/free-solid-svg-icons';
 import { useNavigate } from 'react-router-dom';
-import { Url } from "@/service/helpers/urlConstants";
 import { SearchUser } from "@/types/schema";
+import { getAvatarSrc } from "@/helpers/imageUtils";
 
 const Search = () => {
     const dispatch = useAppDispatch();
@@ -80,7 +80,7 @@ const Search = () => {
                                 className="flex items-center gap-3 py-3 cursor-pointer active:opacity-60 transition-opacity"
                             >
                                 <img
-                                    src={user.avatarUrl ? `${Url}${user.avatarUrl}` : '/default-avatar.png'}
+                                    src={getAvatarSrc(user.avatarUrl)}
                                     className="w-12 h-12 rounded-full object-cover border border-gray-200 dark:border-zinc-800"
                                     alt={user.username}
                                 />

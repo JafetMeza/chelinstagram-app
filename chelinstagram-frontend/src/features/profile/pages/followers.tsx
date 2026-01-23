@@ -6,8 +6,8 @@ import { GetFollowersApi, GetFollowingApi } from "@/service/api.service";
 import { SearchUser } from "@/types/schema";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronLeft, faCircleNotch } from '@fortawesome/free-solid-svg-icons';
-import { Url } from "@/service/helpers/urlConstants";
 import { ROUTES } from "@/routes";
+import { getAvatarSrc } from "@/helpers/imageUtils";
 
 const FollowersPage = () => {
     const { username } = useParams();
@@ -80,7 +80,7 @@ const FollowersPage = () => {
                             className="flex items-center gap-3 py-3 cursor-pointer active:opacity-60 transition-opacity"
                         >
                             <img
-                                src={user.avatarUrl ? `${Url}${user.avatarUrl}` : '/default-avatar.png'}
+                                src={getAvatarSrc(user.avatarUrl)}
                                 className="w-12 h-12 rounded-full object-cover border dark:border-zinc-800"
                                 alt={user.username}
                             />

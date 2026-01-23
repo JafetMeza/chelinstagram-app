@@ -6,8 +6,8 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faImage, faChevronLeft, faMapMarkerAlt, faCircleNotch } from '@fortawesome/free-solid-svg-icons';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from "@/routes";
-import { Url } from "@/service/helpers/urlConstants";
 import { processToSquare } from "../lib/imageProcessing";
+import { getAvatarSrc } from "@/helpers/imageUtils";
 
 const CreateChelfie = () => {
     const dispatch = useAppDispatch();
@@ -116,7 +116,7 @@ const CreateChelfie = () => {
                         <div className="p-4 flex flex-col gap-4 border-b border-gray-100 dark:border-zinc-800">
                             <div className="flex gap-4">
                                 <img
-                                    src={`${Url}${user?.avatarUrl ?? ""}`}
+                                    src={getAvatarSrc(user?.avatarUrl)}
                                     className="w-10 h-10 rounded-full object-cover"
                                     alt="User"
                                 />

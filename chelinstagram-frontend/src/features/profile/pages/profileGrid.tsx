@@ -8,6 +8,7 @@ import { ROUTES } from "@/routes";
 import { Url } from "@/service/helpers/urlConstants";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCircleNotch, faLock, faThumbtack } from '@fortawesome/free-solid-svg-icons';
+import { getAvatarSrc } from "@/helpers/imageUtils";
 
 const ProfileGrid = () => {
     const { username } = useParams();
@@ -92,7 +93,7 @@ const ProfileGrid = () => {
                 <div className="flex items-center gap-6 md:gap-12">
                     <div className="w-20 h-20 md:w-28 md:h-28 rounded-full overflow-hidden border border-gray-100 dark:border-zinc-800 shrink-0 bg-zinc-100">
                         <img
-                            src={profile?.avatarUrl ? `${Url}${profile.avatarUrl}` : '/default-avatar.png'}
+                            src={getAvatarSrc(profile?.avatarUrl)}
                             alt={username}
                             className="w-full h-full object-cover"
                         />

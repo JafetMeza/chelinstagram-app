@@ -2,10 +2,10 @@ import { Post, Comment } from "@/types/schema";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faHeart as faHeartReg, faComment as faCommentReg, faEdit } from '@fortawesome/free-regular-svg-icons';
 import { faEllipsisVertical, faHeart as faHeartSolid, faLocationDot, faThumbtack, faTrash, faXmark } from '@fortawesome/free-solid-svg-icons';
-import { Url } from "@/service/helpers/urlConstants";
 import { ROUTES } from "@/routes";
 import { useNavigate } from "react-router";
 import { useRef, useState } from "react";
+import { getAvatarSrc } from "@/helpers/imageUtils";
 
 interface PostCardProps {
     post: Post;
@@ -34,7 +34,7 @@ const PostCard = ({
     const [showMenu, setShowMenu] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
 
-    const fullImageUrl = `${Url}${post.imageUrl}`;
+    const fullImageUrl = getAvatarSrc(post.imageUrl);
 
     // Helper to navigate to profile
     const handleProfileClick = () => {
@@ -59,7 +59,7 @@ const PostCard = ({
                 <div className="flex items-center gap-3">
                     <button onClick={handleProfileClick} className="active:opacity-60 transition-opacity shrink-0">
                         <img
-                            src={post.author?.avatarUrl ? `${Url}${post.author.avatarUrl}` : '/default-avatar.png'}
+                            src={getAvatarSrc(post.author?.avatarUrl)}
                             alt={post.author?.username}
                             className="w-8 h-8 rounded-full object-cover border border-gray-200 dark:border-zinc-700"
                         />
