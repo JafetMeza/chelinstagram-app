@@ -18,7 +18,7 @@ export const uploadImageToSupabase = async (file: Express.Multer.File): Promise<
     const fileName = `${Date.now()}-${Math.floor(Math.random() * 1000)}.${fileExtension}`;
     const filePath = `posts/${fileName}`; // Organized in a 'posts' folder
 
-    // 2. Upload to your bucket (named 'photos')
+    // 2. Upload to your bucket (named 'chelinstagram-images')
     const { data, error } = await supabase.storage
         .from('chelinstagram-images')
         .upload(filePath, file.buffer, {

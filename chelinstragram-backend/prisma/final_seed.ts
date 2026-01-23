@@ -1468,7 +1468,7 @@ async function main() {
 
       // 3. Get the Public URL using the CLEAN filename
       const { data: { publicUrl } } = supabase.storage
-        .from('photos')
+        .from('chelinstagram-images')
         .getPublicUrl(`memories/${cleanFileName}`); // Use cleanFileName here
 
       // 4. Save to Prisma
