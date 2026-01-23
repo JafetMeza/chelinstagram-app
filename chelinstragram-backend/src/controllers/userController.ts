@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { prisma } from '../../prisma/database';
 import { AuthRequest } from '../middleware/authMiddleware';
+import { uploadImageToSupabase } from "../helper/imageHelper";
 
 /**
  * @openapi
@@ -57,23 +58,33 @@ export const getProfile = async (req: AuthRequest, res: Response) => {
 };
 
 export const updateProfile = async (req: AuthRequest, res: Response) => {
+    // 1. Get userId from the authenticated request
     const { userId } = req.user!;
     const { displayName, bio } = req.body;
 
-    // Handle avatar upload if a file is present
-    const avatarUrl = req.file ? `/uploads/${req.file.filename}` : undefined;
-
     try {
+        let avatarUrl: string | undefined = undefined;
+
+        // 2. If there's a file, upload it to Supabase instead of local disk
+        if (req.file) {
+            // This calls your helper which returns the public HTTPS URL
+            avatarUrl = await uploadImageToSupabase(req.file);
+        }
+
+        // 3. Update the database
         const updatedUser = await prisma.user.update({
             where: { id: userId },
             data: {
                 displayName,
                 bio,
-                ...(avatarUrl && { avatarUrl }) // Only update if a new file was uploaded
+                // Only spread the avatarUrl if it was actually uploaded
+                ...(avatarUrl && { avatarUrl })
             }
         });
+
         res.json(updatedUser);
     } catch (error) {
+        console.error('Update Profile Error:', error);
         res.status(500).json({ error: 'Failed to update profile' });
     }
 };

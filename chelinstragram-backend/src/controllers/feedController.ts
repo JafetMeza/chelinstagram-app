@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { prisma } from '../../prisma/database';
 import { AuthRequest } from '../middleware/authMiddleware';
+import { uploadImageToSupabase } from "../helper/imageHelper";
 
 /**
  * @openapi
@@ -46,9 +47,15 @@ export const createPost = async (req: AuthRequest, res: Response) => {
     const { userId } = req.user!;
     const { caption, location, isPinned } = req.body;
 
-    const imageUrl = req.file ? `/uploads/${req.file.filename}` : '';
-
     try {
+        const file = req.file; // Populated by multer middleware
+
+        if (!file) {
+            return res.status(400).json({ error: 'No image provided' });
+        }
+
+        const imageUrl = await uploadImageToSupabase(file);
+
         const post = await prisma.post.create({
             data: {
                 caption,
