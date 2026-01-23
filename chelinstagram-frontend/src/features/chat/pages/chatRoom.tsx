@@ -7,6 +7,7 @@ import { Message, SendMessageRequest } from "@/types/schema";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronLeft, faPaperPlane, faInfoCircle } from '@fortawesome/free-solid-svg-icons';
 import { getAvatarSrc } from "@/helpers/imageUtils";
+import { ROUTES } from "@/routes";
 
 const ChatRoom = () => {
     const { conversationId } = useParams();
@@ -74,7 +75,13 @@ const ChatRoom = () => {
                         <span className="font-bold text-sm tracking-tight">{partner?.displayName || partner?.username}</span>
                     </div>
                 </div>
-                <FontAwesomeIcon icon={faInfoCircle} className="text-xl text-zinc-400" />
+                <button
+                    onClick={() => partner?.username && navigate(ROUTES.PROFILE(partner.username))}
+                    className="p-2 text-zinc-400 hover:text-black dark:hover:text-white transition-colors active:opacity-50"
+                    title="View Profile"
+                >
+                    <FontAwesomeIcon icon={faInfoCircle} className="text-xl" />
+                </button>
             </div>
 
             {/* 2. Messages Area: flex-1 takes all available middle space */}

@@ -16,6 +16,7 @@ interface PostCardProps {
     activePostId: string | null; // Used to know if THIS post's comments should show
     onOpenComments: (postId: string) => void;
     onCloseComments: () => void;
+    onAddComment: (postId: string, content: string) => void;
     disableProfileClick?: boolean;
     onDelete?: (postId: string) => void;
     onEdit?: (post: Post) => void;
@@ -24,7 +25,7 @@ interface PostCardProps {
 
 const PostCard = ({
     post, isLiked, onToggleLike,
-    comments, activePostId, onOpenComments, onCloseComments,
+    comments, onAddComment, activePostId, onOpenComments, onCloseComments,
     disableProfileClick = false,
     onDelete, onEdit, isOwner
 }: PostCardProps) => {
@@ -34,12 +35,22 @@ const PostCard = ({
     const [showMenu, setShowMenu] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
 
+    const [commentText, setCommentText] = useState("");
+
     const fullImageUrl = getAvatarSrc(post.imageUrl);
 
     // Helper to navigate to profile
     const handleProfileClick = () => {
         if (!disableProfileClick && post.author?.username) {
             navigate(ROUTES.PROFILE(post.author.username));
+        }
+    };
+
+    const handlePostComment = () => {
+        if (!commentText.trim()) return;
+        if (post.id) {
+            onAddComment(post.id, commentText);
+            setCommentText(""); // Clear input after sending
         }
     };
 
@@ -162,10 +173,13 @@ const PostCard = ({
             {/* Caption Section */}
             <div className="px-1 text-black dark:text-white">
                 <p className="font-bold text-sm mb-1">{post._count?.likes || 0} likes</p>
-                <p className="text-sm">
+                <div className="text-sm">
                     <span className="font-bold mr-2">{post.author?.displayName}</span>
-                    {post.caption}
-                </p>
+                    {/* Usamos whitespace-pre-line para respetar los Enter */}
+                    <span className="whitespace-pre-line">
+                        {post.caption}
+                    </span>
+                </div>
             </div>
 
             {isShowingComments && (
@@ -199,14 +213,32 @@ const PostCard = ({
                     </div>
 
                     {/* Input area at the bottom of the slide-up */}
-                    <div className="p-3 border-t border-gray-100 dark:border-zinc-800 flex items-center gap-3 bg-white dark:bg-black">
-                        <input
-                            type="text"
+                    <div className="p-3 border-t border-gray-100 dark:border-zinc-800 flex items-end gap-3 bg-white dark:bg-black">
+                        <textarea
                             placeholder="Add a comment..."
-                            className="flex-1 bg-transparent text-sm outline-none text-black dark:text-white"
+                            className="flex-1 bg-transparent text-sm outline-none text-black dark:text-white resize-none max-h-32 py-1"
+                            rows={1}
                             autoFocus
+                            value={commentText}
+                            onChange={(e) => {
+                                setCommentText(e.target.value);
+                                // Truco para ajustar la altura automáticamente
+                                e.target.style.height = 'inherit';
+                                e.target.style.height = `${e.target.scrollHeight}px`;
+                            }}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter' && !e.shiftKey) {
+                                    e.preventDefault(); // Evita el salto de línea al enviar
+                                    handlePostComment();
+                                }
+                            }}
                         />
-                        <button className="text-blue-500 font-semibold text-sm hover:text-blue-700 transition-colors">
+                        <button
+                            onClick={handlePostComment}
+                            disabled={!commentText.trim()}
+                            className={`font-semibold text-sm pb-1 transition-colors ${commentText.trim() ? 'text-blue-500 hover:text-blue-700' : 'text-gray-300'
+                                }`}
+                        >
                             Post
                         </button>
                     </div>

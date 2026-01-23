@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { GetApi, PostApi } from "@/redux/middleware/httpMethod.mid";
-import { GetCommentsApi, GetFeedApi, ToggleLikeApi } from "@/service/api.service";
-import { Post, Comment } from "@/types/schema";
+import { AddCommentApi, GetCommentsApi, GetFeedApi, ToggleLikeApi } from "@/service/api.service";
+import { Post, Comment, CommentRequest } from "@/types/schema";
 import PostCard from "../components/postCard";
 import PostSkeleton from "../components/postSkeleton";
 
@@ -12,6 +12,7 @@ const Home = () => {
     const [posts, setPosts] = useState<Post[]>([]);
     const [activePostId, setActivePostId] = useState<string | null>(null);
     const [comments, setComments] = useState<Comment[]>([]);
+    const { user } = useAppSelector(state => state.authData);
 
     useEffect(() => {
         dispatch(GetApi([], GetFeedApi));
@@ -54,6 +55,29 @@ const Home = () => {
         dispatch(GetApi([postId], GetCommentsApi)); // Your API to fetch comments
     };
 
+    const handleAddComment = async (postId: string, content: string) => {
+        // 1. Objeto temporal (usa datos que ya tienes)
+        const newComment: Comment = {
+            id: `temp-${Date.now()}`, // ID temporal para React
+            content,
+            createdAt: new Date().toISOString(),
+            author: {
+                username: user?.username,
+                displayName: user?.displayName
+            }
+        };
+
+        // 2. Actualización instantánea de la UI
+        setComments(prev => [...prev, newComment]);
+
+        const commentRequest: CommentRequest = {
+            postId,
+            content
+
+        };
+        dispatch(PostApi([commentRequest], AddCommentApi));
+    };
+
     return (
         <div className="flex flex-col gap-6 w-full">
             {/* 1. Show Skeletons ONLY on initial load, don't hide current posts on re-fetch */}
@@ -74,6 +98,7 @@ const Home = () => {
                         onToggleLike={handleToggleLike}
                         // Comment Props
                         comments={activePostId === post.id ? comments : []}
+                        onAddComment={handleAddComment}
                         activePostId={activePostId}
                         onOpenComments={handleOpenComments}
                         onCloseComments={() => setActivePostId(null)}
