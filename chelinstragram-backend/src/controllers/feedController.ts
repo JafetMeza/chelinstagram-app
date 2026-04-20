@@ -1,7 +1,7 @@
 import { Response } from 'express';
 import { prisma } from '../../prisma/database';
 import { AuthRequest } from '../middleware/authMiddleware';
-import { uploadImageToSupabase } from "../helper/imageHelper";
+import { uploadImage } from "../helper/imageHelper";
 
 /**
  * @openapi
@@ -54,7 +54,7 @@ export const createPost = async (req: AuthRequest, res: Response) => {
             return res.status(400).json({ error: 'No image provided' });
         }
 
-        const imageUrl = await uploadImageToSupabase(file);
+        const imageUrl = await uploadImage(file);
 
         const post = await prisma.post.create({
             data: {

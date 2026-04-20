@@ -14,6 +14,8 @@ import { userSchemas } from "./schemas/user.schema";
 import { chatSchemas } from "./schemas/chat.schema";
 import { feedSchemas } from "./schemas/feed.schema";
 import { interactionSchemas } from "./schemas/interaction.schema";
+import path from "path";
+import fs from 'fs';
 
 const corsOptions = {
     origin: [
@@ -24,6 +26,24 @@ const corsOptions = {
 };
 
 const app = express();
+
+// --- CONFIGURACIÓN DE ARCHIVOS ESTÁTICOS PARA DESARROLLO ---
+const useLocalStorage = process.env.USE_LOCAL_STORAGE === 'true';
+
+if (useLocalStorage) {
+    const uploadsPath = path.join(__dirname, '../uploads');
+
+    // Crear la carpeta si no existe para evitar errores de Express
+    if (!fs.existsSync(uploadsPath)) {
+        fs.mkdirSync(uploadsPath);
+    }
+
+    // Servir la carpeta 'uploads' en la ruta /uploads
+    app.use('/uploads', express.static(uploadsPath));
+    console.log(`[Storage] 📂 Serving local files from: ${uploadsPath}`);
+} else {
+    console.log(`[Storage] ☁️ Using Cloud Storage (Supabase/External)`);
+}
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
@@ -121,4 +141,5 @@ const PORT = 3001;
 app.listen(PORT, () => {
     console.log(`🚀 API: http://localhost:${PORT}`);
     console.log(`📖 Docs: http://localhost:${PORT}/api-docs`);
+    console.log(`🔧 Mode: ${process.env.NODE_ENV || 'development'}`);
 });
