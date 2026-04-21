@@ -5,7 +5,10 @@ import { API_ROUTES } from "./helpers/urlConstants";
 
 // --- AUTH ---
 export const LoginApi = async (data: LoginRequest): Promise<ApiResponse<AuthResponse>> =>
-    await fetchMethod<AuthResponse>(API_ROUTES.AUTH.LOGIN, RequestType.POST, data);
+    await fetchMethod<AuthResponse>(API_ROUTES.AUTH.LOGIN, RequestType.POST, data, true);
+
+export const RefreshTokenApi = async (): Promise<ApiResponse<AuthResponse>> =>
+    await fetchMethod<AuthResponse>(API_ROUTES.AUTH.REFRESH, RequestType.POST, {}, true);
 
 // --- FEED / POSTS ---
 export const GetFeedApi = async (): Promise<ApiResponse<Post[]>> =>

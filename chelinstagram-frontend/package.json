@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "generate-types": "openapi-typescript http://localhost:3001/api-docs-json -o ./src/types/schema.d.ts"
+    "generate:types": "npx swagger-typescript-api generate -p http://localhost:3001/api-docs-json -o ./src/types -n schema.d.ts --no-client --generate-union-enums --extract-request-body --extract-response-body"
   },
   "dependencies": {
     "@fortawesome/fontawesome-svg-core": "^7.1.0",

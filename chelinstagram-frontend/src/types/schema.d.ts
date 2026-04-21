@@ -53,13 +53,21 @@ export interface UpdateProfileRequest {
 export interface LoginRequest {
   /** @example "abraham_meza" */
   username: string;
-  /** @example "password123" */
+  /** @example "!Q2w3e4r5" */
   password: string;
 }
 
 export interface AuthResponse {
-  token?: string;
-  user?: User;
+  /** @example "Login successful!" */
+  message?: string;
+  /** JWT short-lived access token */
+  accessToken?: string;
+  user?: {
+    id?: string;
+    username?: string;
+    displayName?: string | null;
+    avatarUrl?: string | null;
+  };
 }
 
 export interface Participant {
@@ -106,10 +114,16 @@ export interface Post {
     avatarUrl?: string;
   };
   isLikedByUser?: boolean;
-  _count?: {
-    likes?: number;
-    comments?: number;
-  };
+  /**
+   * Total number of likes (denormalized)
+   * @example 0
+   */
+  likesCount?: number;
+  /**
+   * Total number of comments (denormalized)
+   * @example 0
+   */
+  commentCount?: number;
 }
 
 export interface CreatePostRequest {
@@ -149,3 +163,70 @@ export interface CommentRequest {
   /** @example "Que hermosa foto, Graciela! ❤️" */
   content: string;
 }
+
+export type AuthLoginCreateData = AuthResponse;
+
+export interface AuthRefreshCreateData {
+  /** The new short-lived JWT */
+  accessToken?: string;
+}
+
+export type ChatConversationsDetailData = Message[];
+
+export type ChatConversationsDeleteData = any;
+
+export type ChatConversationsListData = Conversation[];
+
+export type ChatMessagesCreateData = Message;
+
+export interface ChatStartCreatePayload {
+  /** @example "user-uuid-here" */
+  recipientId?: string;
+}
+
+export type ChatStartCreateData = Conversation[];
+
+export type PostsCreateData = Post;
+
+export type PostsListData = Post[];
+
+export type PostsPartialUpdateData = Post;
+
+export type PostsDeleteData = any;
+
+export type PostsUserDetailData =
+  | Post[]
+  | {
+      data?: Post[];
+      meta?: {
+        total?: number;
+        page?: number;
+        limit?: number;
+        totalPages?: number;
+        hasNextPage?: boolean;
+      };
+    };
+
+export type InteractionsLikeCreateData = any;
+
+export type InteractionsCommentCreateData = Comment;
+
+export type InteractionsCommentsDetailData = Comment[];
+
+export type UsersProfileListData = UserProfile;
+
+export type UsersProfilePartialUpdateData = any;
+
+export type UsersSearchListData = SearchUser[];
+
+export type UsersDetailData = UserProfile;
+
+export interface UsersFollowCreatePayload {
+  followingId: string;
+}
+
+export type UsersFollowCreateData = any;
+
+export type UsersFollowersListData = SearchUser[];
+
+export type UsersFollowingListData = SearchUser[];

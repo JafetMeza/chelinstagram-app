@@ -1,32 +1,32 @@
 {
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
-    "target": "ES2020",
+    "target": "ES2022",
     "useDefineForClassFields": true,
     "lib": [
-      "ES2020",
+      "ES2022",
       "DOM",
       "DOM.Iterable"
     ],
     "module": "ESNext",
     "skipLibCheck": true,
-    "baseUrl": ".",
-    "paths": {
-      "@/*": [
-        "src/*"
-      ],
-      "ui/*": [
-        "src/components/ui/*"
-      ]
-    },
-    /* Bundler mode */
+    /* Resolución de Módulos (Estilo Bundler) */
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "isolatedModules": true,
     "moduleDetection": "force",
     "noEmit": true,
     "jsx": "react-jsx",
-    /* Linting */
+    /* Alias de Rutas - Eliminamos baseUrl y usamos rutas relativas */
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ],
+      "ui/*": [
+        "./src/components/ui/*"
+      ]
+    },
+    /* Rigor de Tipado */
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,

@@ -36,10 +36,7 @@ const Home = () => {
                 return {
                     ...post,
                     isLikedByUser: !isCurrentlyLiked,
-                    _count: {
-                        ...post._count,
-                        likes: (post._count?.likes || 0) + (isCurrentlyLiked ? -1 : 1)
-                    }
+                    likesCount: (post.likesCount ?? 0) + (isCurrentlyLiked ? -1 : 1)
                 };
             }
             return post;
