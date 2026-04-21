@@ -106,15 +106,11 @@ export const login = async (req: Request, res: Response) => {
  *      - Auth
  *    responses:
  *      200:
- *        description: New access token generated successfully
+ *        description: Successful login
  *        content:
  *          application/json:
  *            schema:
- *              type: object
- *              properties:
- *                accessToken:
- *                  type: string
- *                  description: The new short-lived JWT
+ *              $ref: '#/components/schemas/AuthResponse'
  *      401:
  *        description: No refresh token provided or session expired
  *      403:
@@ -127,21 +123,24 @@ export const refresh = async (req: Request, res: Response) => {
 
     try {
         const payload = jwt.verify(refreshToken, REFRESH_SECRET) as { userId: string; };
+
+        // Buscamos al usuario para obtener sus datos actualizados
         const user = await prisma.user.findUnique({ where: { id: payload.userId } });
 
-        // Validar que el token de la cookie coincida con el de la DB
+        // Validar que el usuario exista y que el token de la cookie coincida con el de la DB
         if (!user || user.refreshToken !== refreshToken) {
             return res.status(403).json({ error: "Invalid refresh token" });
         }
 
         const tokens = generateTokens(user);
 
-        // Opcional: Rotar el refresh token (actualizarlo en DB y Cookie)
+        // Rotar el refresh token en la DB
         await prisma.user.update({
             where: { id: user.id },
             data: { refreshToken: tokens.refreshToken }
         });
 
+        // Actualizar la Cookie
         res.cookie('refreshToken', tokens.refreshToken, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
@@ -149,8 +148,19 @@ export const refresh = async (req: Request, res: Response) => {
             maxAge: 30 * 24 * 60 * 60 * 1000
         });
 
-        res.json({ accessToken: tokens.accessToken });
+        // DEVOLVEMOS LA MISMA ESTRUCTURA QUE EL LOGIN
+        res.json({
+            message: 'Token refreshed successfully!',
+            accessToken: tokens.accessToken,
+            user: {
+                id: user.id,
+                username: user.username,
+                displayName: user.displayName,
+                avatarUrl: user.avatarUrl,
+            },
+        });
     } catch (e) {
+        console.error('Refresh Error:', e);
         return res.status(403).json({ error: "Expired or invalid refresh token" });
     }
 };
