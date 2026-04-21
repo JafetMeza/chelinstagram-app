@@ -1,8 +1,8 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import { prisma } from '../../prisma/database';
 import crypto from 'crypto';
+import { prisma } from "../../prisma/database";
 
 const JWT_SECRET = process.env.JWT_SECRET || "fallback_secret";
 const REFRESH_SECRET = process.env.REFRESH_SECRET || "fallback_refresh_secret";
