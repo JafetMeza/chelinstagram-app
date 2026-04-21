@@ -4,7 +4,7 @@ export const authSchemas = {
         required: ['username', 'password'],
         properties: {
             username: { type: 'string', example: 'abraham_meza' },
-            password: { type: 'string', example: 'password123' }
+            password: { type: 'string', example: '!Q2w3e4r5' }
         }
     },
     AuthResponse: {

@@ -2,7 +2,7 @@ import express from 'express';
 import swaggerUi from 'swagger-ui-express';
 import swaggerJsdoc from 'swagger-jsdoc';
 import { authenticateToken } from './middleware/authMiddleware';
-import { login } from './controllers/authController';
+import { login, refresh } from './controllers/authController';
 import { deleteConversation, getConversation, getMessages, sendMessage, startConversation } from "./controllers/chatController";
 import multer from "multer";
 import { createPost, deletePost, getFeed, getUserPosts, updatePost } from "./controllers/feedController";
@@ -16,6 +16,7 @@ import { feedSchemas } from "./schemas/feed.schema";
 import { interactionSchemas } from "./schemas/interaction.schema";
 import path from "path";
 import fs from 'fs';
+import cookieParser from "cookie-parser";
 
 const corsOptions = {
     origin: [
@@ -26,7 +27,7 @@ const corsOptions = {
 };
 
 const app = express();
-
+app.use(cookieParser());
 // --- CONFIGURACIÓN DE ARCHIVOS ESTÁTICOS PARA DESARROLLO ---
 const useLocalStorage = process.env.USE_LOCAL_STORAGE === 'true';
 
@@ -106,6 +107,7 @@ app.get('/api-docs-json', (req, res) => {
 // -------------------- API ROUTES -----------------------------------
 // Auth Route
 app.post('/api/auth/login', login);
+app.post('/api/auth/refresh', refresh);
 
 // Chat Routes
 app.get('/api/chat/conversations/:conversationId', authenticateToken, getMessages);

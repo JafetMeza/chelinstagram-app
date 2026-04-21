@@ -28,6 +28,7 @@ model User {
   // Self-referential Follow system
   following    Follow[]       @relation("UserFollowing")
   followers    Follow[]       @relation("UserFollowers")
+  refreshToken  String?  @unique
 }
 
 model Follow {
