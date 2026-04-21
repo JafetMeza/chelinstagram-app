@@ -2,6 +2,13 @@ import { Response } from 'express';
 import { prisma } from '../../prisma/database';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { uploadImage } from "../helper/imageHelper";
+import { Post, User } from "../../generated/prisma/client";
+
+type PostWithAuthorAndLikes = Post & {
+    author: Partial<User>;
+    likes: { id: string; }[];
+};
+
 
 /**
  * @openapi
@@ -28,11 +35,22 @@ import { uploadImage } from "../helper/imageHelper";
  *      401:
  *        description: Unauthorized
  *  get:
- *    summary: Get all feed posts
+ *    summary: Get the feed of posts with optional pagination
  *    tags:
  *      - Feed
  *    security:
  *      - bearerAuth: []
+ *    parameters:
+ *     - in: query
+ *       name: page
+ *       description: Page number
+ *       schema:
+ *         type: integer
+ *     - in: query
+ *       name: limit
+ *       schema:
+ *         type: integer
+ *       description: Number of posts per page
  *    responses:
  *      200:
  *        description: List of posts for the feed
@@ -76,25 +94,22 @@ export const createPost = async (req: AuthRequest, res: Response) => {
 export const getFeed = async (req: AuthRequest, res: Response) => {
     try {
         const { userId } = req.user!;
+        const page = req.query.page ? parseInt(req.query.page as string) : null;
+        const limit = req.query.limit ? parseInt(req.query.limit as string) : null;
 
-        // 1. Get the list of people the user follows
         const following = await prisma.follow.findMany({
             where: { followerId: userId },
             select: { followingId: true }
         });
+        const authorIds = [...following.map(f => f.followingId), userId];
 
-        // 2. Extract just the IDs into an array
-        const followingIds = following.map(f => f.followingId);
-
-        // 3. Query posts where author is in followingIds OR is the user themselves
-        const posts = await prisma.post.findMany({
+        const queryOptions = {
             where: {
-                OR: [
-                    { authorId: { in: followingIds } },
-                    { authorId: userId }
-                ]
+                authorId: { in: authorIds }
             },
-            orderBy: { createdAt: 'desc' },
+            orderBy: {
+                createdAt: 'desc' as const
+            },
             include: {
                 author: {
                     select: {
@@ -105,23 +120,42 @@ export const getFeed = async (req: AuthRequest, res: Response) => {
                 },
                 likes: {
                     where: { userId: userId },
-                    select: { userId: true }
-                },
-                _count: {
-                    select: {
-                        likes: true,
-                        comments: true
-                    }
+                    select: { id: true }
                 }
-            }
-        });
+            },
+            ...(page && limit ? {
+                skip: (page - 1) * limit,
+                take: limit
+            } : {})
+        };
 
-        const postsWithLikeStatus = posts.map(post => ({
+        const [posts, totalPosts] = await prisma.$transaction([
+            prisma.post.findMany(queryOptions),
+            prisma.post.count({ where: queryOptions.where })
+        ]);
+
+        const typedPosts = posts as PostWithAuthorAndLikes[];
+
+        const formattedPosts = typedPosts.map(post => ({
             ...post,
-            isLikedByUser: post.likes.length > 0
+            isLikedByUser: post.likes.length > 0,
+            likes: undefined
         }));
 
-        res.status(200).json(postsWithLikeStatus);
+        if (page && limit) {
+            return res.status(200).json({
+                data: formattedPosts,
+                meta: {
+                    total: totalPosts,
+                    page,
+                    limit,
+                    totalPages: Math.ceil(totalPosts / limit),
+                    hasNextPage: page * limit < totalPosts
+                }
+            });
+        }
+
+        res.status(200).json(formattedPosts);
     } catch (error) {
         console.error("Feed error:", error);
         res.status(500).json({ error: "Failed to fetch feed" });
@@ -172,53 +206,37 @@ export const updatePost = async (req: AuthRequest, res: Response) => {
     const { caption, location, isPinned } = req.body;
     const { userId } = req.user!;
 
-    if (!postId) return res.status(400).json({ error: "Post ID is required" });
-
     try {
-        // 1. Verify ownership (remains the same)
-        const post = await prisma.post.findUnique({ where: { id: postId } });
-        if (!post) return res.status(404).json({ error: "Post not found" });
-        if (post.authorId !== userId) return res.status(403).json({ error: "Unauthorized" });
+        const existingPost = await prisma.post.findUnique({ where: { id: postId } });
+        if (!existingPost) return res.status(404).json({ error: "Post not found" });
+        if (existingPost.authorId !== userId) return res.status(403).json({ error: "Unauthorized" });
 
-        // 2. Update and INCLUDE the data the frontend expects
         const updatedPost = await prisma.post.update({
             where: { id: postId },
             data: {
-                caption: caption !== undefined ? caption : post.caption,
-                location: location !== undefined ? location : post.location,
-                isPinned: isPinned !== undefined ? isPinned : post.isPinned
+                caption: caption !== undefined ? caption : existingPost.caption,
+                location: location !== undefined ? location : existingPost.location,
+                isPinned: isPinned !== undefined ? (isPinned === 'true' || isPinned === true) : existingPost.isPinned
             },
             include: {
                 author: {
-                    select: {
-                        username: true,
-                        displayName: true,
-                        avatarUrl: true,
-                    }
+                    select: { username: true, displayName: true, avatarUrl: true }
                 },
                 likes: {
-                    where: { userId: userId },
-                    select: { userId: true }
-                },
-                _count: {
-                    select: {
-                        likes: true,
-                        comments: true
-                    }
+                    where: { userId },
+                    select: { id: true }
                 }
             }
         });
 
-        // 3. Transform to include the isLikedByUser boolean for the frontend
-        const result = {
+        res.json({
             ...updatedPost,
-            isLikedByUser: updatedPost.likes.length > 0
-        };
-
-        res.json(result);
+            isLikedByUser: updatedPost.likes.length > 0,
+            likes: undefined
+        });
     } catch (error) {
-        console.error("UPDATE POST ERROR:", error);
-        res.status(500).json({ error: "Failed to update post" });
+        console.error("UPDATE ERROR:", error);
+        res.status(500).json({ error: "Failed to update" });
     }
 };
 
@@ -263,57 +281,88 @@ export const deletePost = async (req: AuthRequest, res: Response) => {
 };
 
 /**
- * @openapi
+ *  @openapi
  * /api/posts/user/{username}:
- *    get:
- *      summary: Get all posts for a specific user (supports Grid and Feed views)
- *      tags:
- *        - Feed
- *      parameters:
- *        - name: username
- *          in: path
- *          required: true
- *          description: The username of the user whose grid posts are being requested.
- *          schema:
- *            type: string
- *            example: "testUser"
- *      responses:
- *        '200':
- *          description: A list of posts formatted for both grid and full feed display.
- *          content:
- *            application/json:
- *              schema:
- *                type: array
- *                items:
- *                  $ref: '#/components/schemas/Post'
- *        '401':
- *          description: Unauthorized. Missing or invalid token.
- *        '404':
- *          description: User not found.
- *        '500':
- *          description: Internal server error.
+ *   get:
+ *     summary: Get all posts for a specific user (supports Grid and Feed views)
+ *     tags:
+ *       - Feed
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: username
+ *         in: path
+ *         required: true
+ *         description: The username of the user whose posts are being requested.
+ *         schema:
+ *           type: string
+ *           example: "abraham_meza"
+ *       - name: page
+ *         in: query
+ *         description: Page number
+ *         schema:
+ *           type: integer
+ *       - name: limit
+ *         in: query
+ *         description: Number of posts per page
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       '200':
+ *         description: A list of posts formatted for both grid and full feed display.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               oneOf:
+ *                 - type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Post'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/Post'
+ *                     meta:
+ *                       type: object
+ *                       properties:
+ *                         total:
+ *                           type: integer
+ *                         page:
+ *                           type: integer
+ *                         limit:
+ *                           type: integer
+ *                         totalPages:
+ *                           type: integer
+ *                         hasNextPage:
+ *                           type: boolean
+ *       '401':
+ *         description: Unauthorized. Missing or invalid token.
+ *       '404':
+ *         description: User not found.
+ *       '500':
+ *         description: Internal server error.
  */
 export const getUserPosts = async (req: AuthRequest, res: Response) => {
     const { username } = req.params;
-    const userId = req.user?.userId; // Get current user ID if available for like status
+    const userId = req.user?.userId; // ID del usuario actual para el check de isLiked
 
     try {
-        const posts = await prisma.post.findMany({
+        // 1. Parámetros de paginación
+        const page = req.query.page ? parseInt(req.query.page as string) : null;
+        const limit = req.query.limit ? parseInt(req.query.limit as string) : null;
+
+        // 2. Definición de la consulta
+        const queryOptions: any = {
             where: {
                 author: { username: username as string }
             },
-            // 1. Sort by Pinned first, then by Date
+            // Ordenamos: primero fijados, luego por fecha
             orderBy: [
-                { isPinned: 'desc' },
-                { createdAt: 'desc' }
+                { isPinned: 'desc' as const },
+                { createdAt: 'desc' as const }
             ],
-            select: {
-                id: true,
-                imageUrl: true,
-                caption: true,
-                location: true,
-                isPinned: true, // Need this for the UI
-                createdAt: true,
+            include: {
                 author: {
                     select: {
                         username: true,
@@ -321,24 +370,50 @@ export const getUserPosts = async (req: AuthRequest, res: Response) => {
                         avatarUrl: true
                     }
                 },
-                // Include likes for the current user to keep PostCard consistent
+                // Traemos el like solo si el usuario logueado lo dio
                 likes: userId ? {
                     where: { userId },
-                    select: { userId: true }
-                } : false,
-                _count: {
-                    select: { likes: true, comments: true }
-                }
+                    select: { id: true }
+                } : false
             }
-        });
+        };
 
-        // 2. Map results to include isLikedByUser boolean
-        const postsWithStatus = posts.map(post => ({
+        // 3. Aplicar paginación si vienen los queries
+        if (page && limit) {
+            queryOptions.skip = (page - 1) * limit;
+            queryOptions.take = limit;
+        }
+
+        // 4. Ejecutar consultas
+        const [posts, totalPosts] = await prisma.$transaction([
+            prisma.post.findMany(queryOptions),
+            prisma.post.count({ where: queryOptions.where })
+        ]);
+
+        const typedPosts = posts as PostWithAuthorAndLikes[];
+
+        // 5. Mapear resultados usando tus contadores denormalizados
+        const formattedPosts = typedPosts.map(post => ({
             ...post,
-            isLikedByUser: Array.isArray(post.likes) ? post.likes.length > 0 : false
+            isLikedByUser: Array.isArray(post.likes) ? post.likes.length > 0 : false,
+            likes: undefined // Limpieza
         }));
 
-        res.status(200).json(postsWithStatus);
+        // 6. Respuesta con Metadata
+        if (page && limit) {
+            return res.status(200).json({
+                data: formattedPosts,
+                meta: {
+                    total: totalPosts,
+                    page,
+                    limit,
+                    totalPages: Math.ceil(totalPosts / limit),
+                    hasNextPage: page * limit < totalPosts
+                }
+            });
+        }
+
+        res.status(200).json(formattedPosts);
     } catch (error) {
         console.error("GET USER POSTS ERROR:", error);
         res.status(500).json({ error: "Error fetching user posts" });
