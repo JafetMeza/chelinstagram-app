@@ -172,7 +172,7 @@ const PostCard = ({
 
             {/* Caption Section */}
             <div className="px-1 text-black dark:text-white">
-                <p className="font-bold text-sm mb-1">{post._count?.likes || 0} likes</p>
+                <p className="font-bold text-sm mb-1">{post.likesCount} likes</p>
                 <div className="text-sm">
                     <span className="font-bold mr-2">{post.author?.displayName}</span>
                     {/* Usamos whitespace-pre-line para respetar los Enter */}

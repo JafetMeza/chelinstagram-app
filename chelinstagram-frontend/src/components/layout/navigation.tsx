@@ -1,12 +1,14 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faHome, faSearch, faSquarePlus, faUser } from '@fortawesome/free-solid-svg-icons';
-import { faMessage } from '@fortawesome/free-regular-svg-icons';
+import { faMessage, IconDefinition } from '@fortawesome/free-regular-svg-icons';
 import { Link } from 'react-router-dom';
 import { ROUTES } from "@/routes";
-import { useAppSelector } from "@/redux/hooks";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { clearProfileState } from "@/redux/ducks/profileState";
 
 const Navigation = () => {
     const { user } = useAppSelector(state => state.authData);
+    const dispatch = useAppDispatch();
 
     const navItems = [
         { icon: faHome, label: 'Home', path: ROUTES.HOME },
@@ -16,13 +18,21 @@ const Navigation = () => {
         { icon: faUser, label: 'Profile', path: ROUTES.PROFILE(user?.username ?? "") }, // Example usage
     ];
 
+    const onClean = ({ label }: {
+        icon: IconDefinition;
+        label: string;
+        path: string;
+    }) => {
+        if (label !== "Profile") dispatch(clearProfileState());
+    };
+
     return (
         <>
             {/* MOBILE BOTTOM BAR */}
             <nav className="fixed bottom-0 w-full h-12 bg-white dark:bg-black border-t border-gray-200 dark:border-zinc-800 flex justify-around items-center lg:hidden z-50">
                 {navItems.map((item) => (
                     <Link key={item.label} to={item.path} className="p-2">
-                        <FontAwesomeIcon icon={item.icon} className="text-xl dark:text-white" />
+                        <FontAwesomeIcon icon={item.icon} className="text-xl dark:text-white" onClick={() => onClean(item)} />
                     </Link>
                 ))}
             </nav>
@@ -32,7 +42,7 @@ const Navigation = () => {
                 <h1 className="hidden xl:block text-2xl italic font-serif mb-10 px-2">Chelinstagram</h1>
                 <div className="flex flex-col gap-4">
                     {navItems.map((item) => (
-                        <Link key={item.label} to={item.path} className="flex items-center gap-4 p-3 hover:bg-gray-100 dark:hover:bg-zinc-900 rounded-lg group">
+                        <Link key={item.label} to={item.path} className="flex items-center gap-4 p-3 hover:bg-gray-100 dark:hover:bg-zinc-900 rounded-lg group" onClick={() => onClean(item)}>
                             <FontAwesomeIcon icon={item.icon} className="text-xl group-hover:scale-110 transition-transform" />
                             <span className="hidden xl:block text-md">{item.label}</span>
                         </Link>
