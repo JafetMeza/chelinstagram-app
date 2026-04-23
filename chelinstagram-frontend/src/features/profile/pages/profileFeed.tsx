@@ -64,6 +64,7 @@ const ProfileFeedPage = () => {
             // Si no hay datos, pedimos la página 1 por defecto
             dispatch(GetApi([`page=1&limit=${GLOBAL_LIMIT}`, username], GetUserPostsApi));
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [username, isSameUser, dispatch]);
 
     // 5. INTERSECTION OBSERVER MANUAL (Para paginación al final de la lista)
@@ -231,7 +232,7 @@ const ProfileFeedPage = () => {
 
             {/* MODAL: Delete */}
             {showDeleteModal && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
                     <div className="bg-white dark:bg-zinc-900 w-full max-w-xs rounded-2xl overflow-hidden shadow-2xl animate-in zoom-in duration-200">
                         <div className="p-6 text-center">
                             <h3 className="text-lg font-bold">Delete Chelfie?</h3>
@@ -252,7 +253,7 @@ const ProfileFeedPage = () => {
 
             {/* MODAL: Edit */}
             {editingPost && (
-                <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+                <div className="fixed inset-0 z-100 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
                     <div className="bg-white dark:bg-zinc-900 w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-in zoom-in duration-200">
                         <h3 className="font-bold text-lg mb-4 text-center">Edit Chelfie</h3>
                         <div className="space-y-4">
