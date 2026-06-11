@@ -1,26 +1,37 @@
 {
   "compilerOptions": {
+    /* Estándar y Resolución Moderna */
     "target": "ES2022",
-    "module": "CommonJS",
+    "module": "Node16",
+    "moduleResolution": "Node16",
+    /* Bibliotecas */
     "lib": [
       "ES2022"
     ],
-    "rootDir": "./",
-    "outDir": "./dist",
-    "moduleResolution": "node",
-    "esModuleInterop": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
+    /* Configuración de Emisión */
+    "outDir": "./dist",
+    /* No definimos rootDir ni baseUrl para evitar conflictos de jerarquía */
+    /* Rigor de Tipado */
     "strict": true,
-    "sourceMap": true
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictPropertyInitialization": false,
+    /* Interoperabilidad */
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "forceConsistentCasingInFileNames": true,
+    /* Decoradores */
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
   },
   "include": [
-    "src/**/*",
-    "prisma/seed.ts",
-    "prisma/prisma.config.ts" /* TypeScript now knows where to look */
+    "src/**/*.ts",
+    "prisma/**/*.ts"
   ],
   "exclude": [
     "node_modules",
-    "dist"
+    "dist",
+    "**/*.test.ts"
   ]
 }

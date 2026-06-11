@@ -28,6 +28,7 @@ model User {
   // Self-referential Follow system
   following    Follow[]       @relation("UserFollowing")
   followers    Follow[]       @relation("UserFollowers")
+  refreshToken  String?  @unique
 }
 
 model Follow {
@@ -53,6 +54,8 @@ model Post {
   isPinned  Boolean   @default(false)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
+  likesCount     Int       @default(0)
+  commentCount   Int       @default(0)
   
   authorId  String
   author    User      @relation(fields: [authorId], references: [id])
