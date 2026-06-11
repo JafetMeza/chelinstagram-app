@@ -35,7 +35,7 @@ const ProfileGrid = () => {
     const isOwnProfile = currentUser?.username === username;
     const canSeeContent = isOwnProfile || profile?.isFollowing;
 
-    const { getYPosition, scrollTo } = useScroll();
+    const { getYPosition, scrollTo, scrollToTop } = useScroll();
 
     // Cambiado a 18 según tu código
     const GRID_LIMIT = 18;
@@ -78,13 +78,15 @@ const ProfileGrid = () => {
 
     // --- EFECTO 2: RESTAURACIÓN DE SCROLL (Solo Grid) ---
     useLayoutEffect(() => {
+        // Si regresamos de ver un post del mismo usuario, restauramos la posición
         if (isSameUser && scrollPosition > 0 && persistedPosts.length > 0) {
-            // instant para que el usuario no vea el "desplazamiento"
             scrollTo(scrollPosition);
+        } else {
+            // 🟢 EL FIX: Si venimos del Home u otra página, forzamos el scroll al top absoluto
+            scrollToTop();
         }
-
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isSameUser]);
+    }, [isSameUser, username]);
 
     // --- EFECTO 3: CARGA DE PERFIL ---
     useEffect(() => {

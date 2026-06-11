@@ -38,9 +38,12 @@ export const useInfiniteScroll = <T, Params extends any[]>({
     // 1. LÓGICA DE RESETEO (Solo si cambia el contexto/usuario)
     useEffect(() => {
         // Si el contexto cambia, reseteamos todo al estado inicial real
-        setPosts(initialPosts);
-        setPage(initialPage);
-        setHasMore(initialHasMore);
+        const reset = () => {
+            setPosts(initialPosts);
+            setPage(initialPage);
+            setHasMore(initialHasMore);
+        };
+        reset();
         lastFetchedPage.current = initialPosts.length > 0 ? initialPage : 0;
         isFetching.current = false;
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -54,7 +57,7 @@ export const useInfiniteScroll = <T, Params extends any[]>({
             const queryParams = [`page=${page}&limit=${limit}`, ...extraParams];
             dispatch(GetApi(queryParams, apiService as any));
         }
-    }, [page, currentContext, limit, hasMore, apiService, dispatch]);
+    }, [page, currentContext, limit, hasMore, apiService, dispatch, extraParams]);
 
     // 3. SINCRONIZACIÓN DE DATA
     useEffect(() => {
@@ -68,13 +71,16 @@ export const useInfiniteScroll = <T, Params extends any[]>({
 
             // Verificamos que la data que llegó sea la que pedimos
             if (meta?.page === page) {
-                setPosts(prev => {
-                    if (page === 1) return newPosts;
-                    const existingIds = new Set(prev.map(p => p.id));
-                    const uniqueNew = newPosts.filter(p => !existingIds.has(p.id));
-                    return [...prev, ...uniqueNew];
-                });
-                setHasMore(meta?.hasNextPage ?? false);
+                const syncronizePost = () => {
+                    setPosts(prev => {
+                        if (page === 1) return newPosts;
+                        const existingIds = new Set(prev.map(p => p.id));
+                        const uniqueNew = newPosts.filter(p => !existingIds.has(p.id));
+                        return [...prev, ...uniqueNew];
+                    });
+                    setHasMore(meta?.hasNextPage ?? false);
+                };
+                syncronizePost();
                 lastFetchedPage.current = page; // Marcamos página como completada
             }
         }
