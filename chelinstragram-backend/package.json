@@ -53,5 +53,14 @@
   "prisma": {
     "seed": "ts-node prisma/seed.ts",
     "config": "prisma/prisma.config.ts"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/engines",
+      "@scarf/scarf",
+      "bcrypt",
+      "esbuild",
+      "prisma"
+    ]
   }
 }
