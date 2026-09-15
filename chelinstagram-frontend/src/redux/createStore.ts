@@ -4,11 +4,13 @@ import { combineReducers, configureStore } from "@reduxjs/toolkit";
 import themeReducer from "./ducks/theme";
 import apiDataReducer from "./ducks/apiData";
 import authReducer from "./ducks/auth";
+import profileReducer from "./ducks/profileState";
 
 const rootReducer = combineReducers({
   theme: themeReducer,
   apiData: apiDataReducer,
-  authData: authReducer
+  authData: authReducer,
+  profileState: profileReducer,
 });
 
 const persistedState = loadState();
@@ -24,6 +26,7 @@ store.subscribe(
     saveState({
       theme: store.getState().theme,
       authData: store.getState().authData,
+      profileState: store.getState().profileState
     });
   }, 1000)
 );

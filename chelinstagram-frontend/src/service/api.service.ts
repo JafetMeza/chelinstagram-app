@@ -1,15 +1,24 @@
-import { AuthResponse, CommentRequest, Conversation, LoginRequest, Message, Post, SearchUser, SendMessageRequest, UpdatePostRequest, UserProfile } from "@/types/schema";
+import { AuthResponse, CommentRequest, Conversation, LoginRequest, Message, Post, PostsUserDetailData, SearchUser, SendMessageRequest, UpdatePostRequest, UserProfile } from "@/types/schema";
 import { ApiResponse, RequestType } from "./helpers/serviceConstants";
 import { fetchMethod } from "./helpers/fetchMethod";
 import { API_ROUTES } from "./helpers/urlConstants";
 
 // --- AUTH ---
 export const LoginApi = async (data: LoginRequest): Promise<ApiResponse<AuthResponse>> =>
-    await fetchMethod<AuthResponse>(API_ROUTES.AUTH.LOGIN, RequestType.POST, data);
+    await fetchMethod<AuthResponse>(API_ROUTES.AUTH.LOGIN, RequestType.POST, data, true);
+
+export const RefreshTokenApi = async (): Promise<ApiResponse<AuthResponse>> =>
+    await fetchMethod<AuthResponse>(API_ROUTES.AUTH.REFRESH, RequestType.POST, {}, true);
 
 // --- FEED / POSTS ---
-export const GetFeedApi = async (): Promise<ApiResponse<Post[]>> =>
-    await fetchMethod<Post[]>(API_ROUTES.POSTS.BASE, RequestType.GET);
+export const GetFeedApi = async (query?: string): Promise<ApiResponse<PostsUserDetailData>> => {
+    let url = API_ROUTES.POSTS.BASE;
+    if (query) {
+        url += `?${query}`;
+    }
+    const result = await fetchMethod<PostsUserDetailData>(url, RequestType.GET);
+    return result;
+};
 
 export const CreatePostApi = async (data: FormData): Promise<ApiResponse<Post>> =>
     await fetchMethod<Post>(API_ROUTES.POSTS.BASE, RequestType.POST, data);
@@ -17,8 +26,11 @@ export const CreatePostApi = async (data: FormData): Promise<ApiResponse<Post>> 
 export const DeletePostApi = async (postId: string): Promise<ApiResponse<void>> =>
     await fetchMethod<void>(API_ROUTES.POSTS.BY_ID(postId), RequestType.DELETE);
 
-export const GetUserPostsApi = async (username: string): Promise<ApiResponse<Post[]>> =>
-    await fetchMethod<Post[]>(API_ROUTES.POSTS.BY_USER(username), RequestType.GET);
+export const GetUserPostsApi = async (query: string, username: string): Promise<ApiResponse<PostsUserDetailData>> => {
+    let url = API_ROUTES.POSTS.BY_USER(username);
+    url += `?${query}`;
+    return await fetchMethod<PostsUserDetailData>(url, RequestType.GET);
+};
 
 export const UpdatePostApi = async (postId: string, data: UpdatePostRequest): Promise<ApiResponse<Post>> =>
     await fetchMethod<Post>(API_ROUTES.POSTS.BY_ID(postId), RequestType.PATCH, data);

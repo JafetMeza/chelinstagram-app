@@ -37,15 +37,27 @@ export const toggleLike = async (req: AuthRequest, res: Response) => {
         });
 
         if (existingLike) {
-            await prisma.like.delete({
-                where: { id: existingLike.id }
-            });
+            await prisma.$transaction([
+                prisma.like.delete({
+                    where: { id: existingLike.id }
+                }),
+                prisma.post.update({
+                    where: { id: postId },
+                    data: { likesCount: { decrement: 1 } }
+                })
+            ]);
             return res.json({ message: 'Post unliked' });
         }
 
-        await prisma.like.create({
-            data: { postId, userId }
-        });
+        await prisma.$transaction([
+            prisma.like.create({
+                data: { postId, userId }
+            }),
+            prisma.post.update({
+                where: { id: postId },
+                data: { likesCount: { increment: 1 } }
+            })
+        ]);
         res.status(201).json({ message: 'Post liked' });
     } catch (error) {
         res.status(500).json({ error: 'Failed to toggle like' });
@@ -83,16 +95,22 @@ export const addComment = async (req: AuthRequest, res: Response) => {
     const { postId, content } = req.body;
 
     try {
-        const comment = await prisma.comment.create({
-            data: {
-                content,
-                postId,
-                authorId: userId
-            },
-            include: {
-                author: { select: { username: true, displayName: true } }
-            }
-        });
+        const [comment] = await prisma.$transaction([
+            prisma.comment.create({
+                data: {
+                    content,
+                    postId,
+                    authorId: userId
+                },
+                include: {
+                    author: { select: { username: true, displayName: true, avatarUrl: true } }
+                }
+            }),
+            prisma.post.update({
+                where: { id: postId },
+                data: { commentCount: { increment: 1 } }
+            })
+        ]);
         res.status(201).json(comment);
     } catch (error) {
         res.status(500).json({ error: 'Failed to add comment' });

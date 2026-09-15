@@ -1,7 +1,7 @@
 import { Response } from 'express';
 import { prisma } from '../../prisma/database';
 import { AuthRequest } from '../middleware/authMiddleware';
-import { uploadImageToSupabase } from "../helper/imageHelper";
+import { uploadImage } from "../helper/imageHelper";
 
 /**
  * @openapi
@@ -68,7 +68,7 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
         // 2. If there's a file, upload it to Supabase instead of local disk
         if (req.file) {
             // This calls your helper which returns the public HTTPS URL
-            avatarUrl = await uploadImageToSupabase(req.file);
+            avatarUrl = await uploadImage(req.file);
         }
 
         // 3. Update the database

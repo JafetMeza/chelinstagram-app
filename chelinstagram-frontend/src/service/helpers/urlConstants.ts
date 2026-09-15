@@ -5,6 +5,7 @@ export const API_ROUTES = {
     // Auth
     AUTH: {
         LOGIN: `${UrlHost}/auth/login`,
+        REFRESH: `${UrlHost}/auth/refresh`,
     },
 
     // Feed / Posts

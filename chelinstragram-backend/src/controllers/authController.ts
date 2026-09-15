@@ -1,7 +1,31 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import { prisma } from '../../prisma/database';
+import crypto from 'crypto';
+import { prisma } from "../../prisma/database";
+
+const JWT_SECRET = process.env.JWT_SECRET || "fallback_secret";
+const REFRESH_SECRET = process.env.REFRESH_SECRET || "fallback_refresh_secret";
+
+const generateTokens = (user: { id: string, username: string; }) => {
+    const accessToken = jwt.sign(
+        { userId: user.id, username: user.username },
+        JWT_SECRET!,
+        { expiresIn: '15m' }
+    );
+
+    // Añadimos un ID único al token (jti) para que siempre sea diferente
+    const refreshToken = jwt.sign(
+        {
+            userId: user.id,
+            version: crypto.randomBytes(16).toString('hex') // 👈 Esto garantiza un token único
+        },
+        REFRESH_SECRET!,
+        { expiresIn: '30d' }
+    );
+
+    return { accessToken, refreshToken };
+};
 
 /**
  * @openapi
@@ -35,48 +59,108 @@ import { prisma } from '../../prisma/database';
  */
 export const login = async (req: Request, res: Response) => {
     const { username, password } = req.body;
-    let JWT_SECRET = process.env.JWT_SECRET || "";
-
-    console.log(username);
 
     try {
-        // 1. Find user by username
-        const user = await prisma.user.findUnique({
-            where: { username },
+        const user = await prisma.user.findUnique({ where: { username } });
+        if (!user || !(await bcrypt.compare(password, user.password))) {
+            return res.status(401).json({ error: 'Invalid username or password' });
+        }
+
+        const { accessToken, refreshToken } = generateTokens(user);
+
+        // Guardar Refresh Token en la DB
+        await prisma.user.update({
+            where: { id: user.id },
+            data: { refreshToken }
         });
 
-        if (!user) {
-            return res.status(401).json({ error: 'Invalid username or password' });
-        }
+        // Enviar Refresh Token en una Cookie HTTP-Only
+        res.cookie('refreshToken', refreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production', // Solo HTTPS en producción
+            sameSite: 'lax',
+            maxAge: 30 * 24 * 60 * 60 * 1000 // 30 días
+        });
 
-        // 2. Check password using bcrypt
-        const isPasswordValid = await bcrypt.compare(password, user.password);
-
-        if (!isPasswordValid) {
-            return res.status(401).json({ error: 'Invalid username or password' });
-        }
-
-        // 3. Generate JWT
-        const token = jwt.sign(
-            { userId: user.id, username: user.username },
-            JWT_SECRET,
-            { expiresIn: '7d' }
-        );
-
-        // 4. Return user info and token
         res.json({
             message: 'Login successful!',
-            token,
+            accessToken, // El front guarda este en memoria/estado
             user: {
                 id: user.id,
                 username: user.username,
                 displayName: user.displayName,
-                bio: user.bio,
                 avatarUrl: user.avatarUrl,
             },
         });
     } catch (error) {
-        console.error('Login error:', error);
-        res.status(500).json({ error: 'Something went wrong on the server' });
+        res.status(500).json({ error: 'Server error' });
+    }
+};
+
+/**
+ * @openapi
+ * /api/auth/refresh:
+ *  post:
+ *    summary: Refresh the access token using a refresh token cookie
+ *    tags:
+ *      - Auth
+ *    responses:
+ *      200:
+ *        description: Successful login
+ *        content:
+ *          application/json:
+ *            schema:
+ *              $ref: '#/components/schemas/AuthResponse'
+ *      401:
+ *        description: No refresh token provided or session expired
+ *      403:
+ *        description: Invalid or revoked refresh token
+ */
+export const refresh = async (req: Request, res: Response) => {
+    const refreshToken = req.cookies?.refreshToken;
+
+    if (!refreshToken) return res.status(401).json({ error: "No refresh token" });
+
+    try {
+        const payload = jwt.verify(refreshToken, REFRESH_SECRET) as { userId: string; };
+
+        // Buscamos al usuario para obtener sus datos actualizados
+        const user = await prisma.user.findUnique({ where: { id: payload.userId } });
+
+        // Validar que el usuario exista y que el token de la cookie coincida con el de la DB
+        if (!user || user.refreshToken !== refreshToken) {
+            return res.status(403).json({ error: "Invalid refresh token" });
+        }
+
+        const tokens = generateTokens(user);
+
+        // Rotar el refresh token en la DB
+        await prisma.user.update({
+            where: { id: user.id },
+            data: { refreshToken: tokens.refreshToken }
+        });
+
+        // Actualizar la Cookie
+        res.cookie('refreshToken', tokens.refreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            maxAge: 30 * 24 * 60 * 60 * 1000
+        });
+
+        // DEVOLVEMOS LA MISMA ESTRUCTURA QUE EL LOGIN
+        res.json({
+            message: 'Token refreshed successfully!',
+            accessToken: tokens.accessToken,
+            user: {
+                id: user.id,
+                username: user.username,
+                displayName: user.displayName,
+                avatarUrl: user.avatarUrl,
+            },
+        });
+    } catch (e) {
+        console.error('Refresh Error:', e);
+        return res.status(403).json({ error: "Expired or invalid refresh token" });
     }
 };
