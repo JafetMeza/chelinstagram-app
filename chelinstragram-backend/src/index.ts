@@ -20,6 +20,7 @@ import cookieParser from "cookie-parser";
 
 const corsOptions = {
     origin: [
+        "http://localhost:4173",
         'http://localhost:3000', // Local development
         process.env.FRONTEND_URL as string // Production Vercel URL
     ].filter(Boolean),
