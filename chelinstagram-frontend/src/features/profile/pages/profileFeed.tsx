@@ -168,13 +168,24 @@ const ProfileFeedPage = () => {
     };
 
     const handleAddComment = async (postId: string, content: string) => {
+        const post = persistedPosts.find(p => p.id === postId);
         const newComment: Comment = {
             id: `temp-${Date.now()}`,
             content,
             createdAt: new Date().toISOString(),
             author: { username: currentUser?.username, displayName: currentUser?.displayName }
         };
+
         setComments(prev => [...prev, newComment]);
+
+        // Opcional: Si deseas que el contador numérico local incremente de inmediato en Redux
+        if (post) {
+            dispatch(updatePostInState({
+                id: postId,
+                commentCount: (post.commentCount ?? 0) + 1
+            }));
+        }
+
         dispatch(PostApi([{ postId, content }], AddCommentApi));
     };
 
