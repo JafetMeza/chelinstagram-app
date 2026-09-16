@@ -1,5 +1,5 @@
 import { Response } from 'express';
-import { prisma } from '../../prisma/database';
+import { prisma } from '../config/database';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { uploadImage } from "../helper/imageHelper";
 
