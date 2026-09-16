@@ -2,7 +2,7 @@ import { Response } from 'express';
 import { prisma } from '../../prisma/database';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { uploadImage } from "../helper/imageHelper";
-import { Post, User } from "../../generated/prisma/client";
+import { Post, User } from "@prisma/client";
 
 type PostWithAuthorAndLikes = Post & {
     author: Partial<User>;
