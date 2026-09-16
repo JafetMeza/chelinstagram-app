@@ -17,6 +17,9 @@ import { interactionSchemas } from "./schemas/interaction.schema";
 import path from "path";
 import fs from 'fs';
 import cookieParser from "cookie-parser";
+import http from 'http';
+import { Server } from 'socket.io';
+import jwt from 'jsonwebtoken';
 
 const corsOptions = {
     origin: [
@@ -28,6 +31,15 @@ const corsOptions = {
 };
 
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server, {
+    cors: {
+        origin: ["http://localhost:4173", "http://localhost:3000", process.env.FRONTEND_URL as string],
+        methods: ["GET", "POST"],
+        credentials: true
+    }
+});
+
 app.use(cookieParser());
 // --- CONFIGURACIÓN DE ARCHIVOS ESTÁTICOS PARA DESARROLLO ---
 const useLocalStorage = process.env.USE_LOCAL_STORAGE === 'true';
@@ -105,6 +117,27 @@ app.get('/api-docs-json', (req, res) => {
     res.send(swaggerSpec);
 });
 
+// 3. MIDDLEWARE DE AUTENTICACIÓN (El guardia del WebSocket)
+io.use((socket, next) => {
+    // Extraemos el token que el frontend envió en la propiedad "auth"
+    const token = socket.handshake.auth.token;
+
+    if (!token) {
+        return next(new Error("Acceso denegado: No hay token"));
+    }
+
+    try {
+        // Verificamos el JWT usando tu secreto
+        const decoded = jwt.verify(token, process.env.JWT_SECRET as string);
+
+        // Guardamos los datos del usuario dentro del socket para saber quién es
+        socket.data.user = decoded;
+        next(); // Lo dejamos pasar
+    } catch (error) {
+        return next(new Error("Acceso denegado: Token inválido o expirado"));
+    }
+});
+
 // -------------------- API ROUTES -----------------------------------
 // Auth Route
 app.post('/api/auth/login', login);
@@ -140,7 +173,19 @@ app.get('/api/users/:username', authenticateToken, getUserByUserName);
 app.get('/api/users/:username/followers', authenticateToken, getFollowers);
 app.get('/api/users/:username/following', authenticateToken, getFollowing);
 
-const PORT = 3001;
+// 4. ESCUCHAR CONEXIONES
+io.on('connection', (socket) => {
+    // Si llegó aquí, el token es válido
+    const user = socket.data.user;
+    console.log(`🟢 Usuario conectado: ${user.username} (Socket ID: ${socket.id})`);
+
+    // Cuando el usuario cierre la app
+    socket.on('disconnect', () => {
+        console.log(`🔴 Usuario desconectado: ${user.username}`);
+    });
+});
+
+const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
     console.log(`🚀 API: http://localhost:${PORT}`);
     console.log(`📖 Docs: http://localhost:${PORT}/api-docs`);

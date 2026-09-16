@@ -32,6 +32,7 @@
     "react-router": "^7.12.0",
     "react-router-dom": "^7.12.0",
     "rxjs": "^7.8.2",
+    "socket.io-client": "^4.8.3",
     "tailwindcss": "^4.1.18",
     "workbox-window": "^7.4.1"
   },
