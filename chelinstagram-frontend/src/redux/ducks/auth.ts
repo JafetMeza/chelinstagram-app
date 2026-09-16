@@ -2,11 +2,11 @@ import { AuthResponse } from "@/types/schema";
 import { type PayloadAction, createSlice } from "@reduxjs/toolkit";
 
 const initialState: AuthResponse = {
-  token: "",
+  message: "",
+  accessToken: "",
   user: {
     id: "",
     username: "",
-    email: "",
     displayName: "",
     avatarUrl: ""
   }

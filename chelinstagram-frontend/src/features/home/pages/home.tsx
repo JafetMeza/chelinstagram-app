@@ -1,64 +1,63 @@
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react'; // 👈 Añadido useEffect
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import { GetApi, PostApi } from "@/redux/middleware/httpMethod.mid";
+import { PostApi, GetApi } from "@/redux/middleware/httpMethod.mid";
 import { AddCommentApi, GetCommentsApi, GetFeedApi, ToggleLikeApi } from "@/service/api.service";
-import { Post, Comment, CommentRequest } from "@/types/schema";
+import { Comment, CommentRequest } from "@/types/schema";
+import { useInfiniteScroll } from "@/components/hooks/useInfiniteScroll";
 import PostCard from "../components/postCard";
 import PostSkeleton from "../components/postSkeleton";
 
 const Home = () => {
     const dispatch = useAppDispatch();
-    const { ok, data, loading, apiMethod } = useAppSelector(state => state.apiData);
-    const [posts, setPosts] = useState<Post[]>([]);
+    const { user } = useAppSelector(state => state.authData);
+    const { ok, data, apiMethod } = useAppSelector(state => state.apiData);
+
+    const {
+        posts,
+        loading,
+        hasMore,
+        lastElementRef,
+        updateLocalPost
+    } = useInfiniteScroll({
+        apiService: GetFeedApi,
+        limit: 10
+    });
+
     const [activePostId, setActivePostId] = useState<string | null>(null);
     const [comments, setComments] = useState<Comment[]>([]);
-    const { user } = useAppSelector(state => state.authData);
 
+    // 🟢 SOLUCIÓN AL CRASH: La sincronización ahora es segura y respeta el ciclo de React
     useEffect(() => {
-        dispatch(GetApi([], GetFeedApi));
-    }, [dispatch]);
-
-    useEffect(() => {
-        if (ok && apiMethod === GetFeedApi.name) {
-            // eslint-disable-next-line react-hooks/set-state-in-effect
-            setPosts(data as Post[]);
-        } else if (ok && apiMethod === GetCommentsApi.name) {
-            setComments(data as Comment[]);
+        if (ok && apiMethod === GetCommentsApi.name && data) {
+            const onSetComments = () => {
+                setComments(data as Comment[]);
+            };
+            onSetComments();
         }
-        // Removed the ToggleLikeApi reload from here to prevent flashing
     }, [ok, data, apiMethod]);
 
     const handleToggleLike = (postId: string) => {
-        // OPTIMISTIC UPDATE: Update the state locally before the API finishes
-        setPosts(currentPosts => currentPosts.map(post => {
-            if (post.id === postId) {
-                const isCurrentlyLiked = post.isLikedByUser;
-                return {
-                    ...post,
-                    isLikedByUser: !isCurrentlyLiked,
-                    _count: {
-                        ...post._count,
-                        likes: (post._count?.likes || 0) + (isCurrentlyLiked ? -1 : 1)
-                    }
-                };
-            }
-            return post;
-        }));
+        const post = posts.find(p => p.id === postId);
+        if (!post) return;
 
-        // Fire and forget - the UI is already updated!
+        const isCurrentlyLiked = post.isLikedByUser;
+        updateLocalPost(postId, {
+            isLikedByUser: !isCurrentlyLiked,
+            likesCount: (post.likesCount ?? 0) + (isCurrentlyLiked ? -1 : 1)
+        });
+
         dispatch(PostApi([postId], ToggleLikeApi));
     };
 
     const handleOpenComments = (postId: string) => {
         setActivePostId(postId);
-        setComments([]); // Clear previous comments while loading
-        dispatch(GetApi([postId], GetCommentsApi)); // Your API to fetch comments
+        setComments([]);
+        dispatch(GetApi([postId], GetCommentsApi));
     };
 
     const handleAddComment = async (postId: string, content: string) => {
-        // 1. Objeto temporal (usa datos que ya tienes)
         const newComment: Comment = {
-            id: `temp-${Date.now()}`, // ID temporal para React
+            id: `temp-${Date.now()}`,
             content,
             createdAt: new Date().toISOString(),
             author: {
@@ -67,20 +66,13 @@ const Home = () => {
             }
         };
 
-        // 2. Actualización instantánea de la UI
         setComments(prev => [...prev, newComment]);
-
-        const commentRequest: CommentRequest = {
-            postId,
-            content
-
-        };
+        const commentRequest: CommentRequest = { postId, content };
         dispatch(PostApi([commentRequest], AddCommentApi));
     };
 
     return (
-        <div className="flex flex-col gap-6 w-full">
-            {/* 1. Show Skeletons ONLY on initial load, don't hide current posts on re-fetch */}
+        <div className="flex flex-col gap-6 w-full pb-10">
             {loading && posts.length === 0 && (
                 <>
                     <PostSkeleton />
@@ -88,25 +80,40 @@ const Home = () => {
                 </>
             )}
 
-            {/* 2. Success State */}
-            {posts.length > 0 ? (
-                posts.map((post) => (
+            {posts.map((post, index) => (
+                <div
+                    key={post.id}
+                    ref={posts.length === index + 1 ? lastElementRef : null}
+                >
                     <PostCard
-                        key={post.id}
                         post={post}
                         isLiked={post.isLikedByUser ?? false}
                         onToggleLike={handleToggleLike}
-                        // Comment Props
                         comments={activePostId === post.id ? comments : []}
                         onAddComment={handleAddComment}
                         activePostId={activePostId}
                         onOpenComments={handleOpenComments}
                         onCloseComments={() => setActivePostId(null)}
                     />
-                ))
-            ) : !loading && (
+                </div>
+            ))}
+
+            {/* 🟢 SOLUCIÓN AL SCROLL DEL FONDO: Ocultamos el spinner global si estamos viendo comentarios (!activePostId) */}
+            {loading && posts.length > 0 && !activePostId && (
+                <div className="flex justify-center p-4">
+                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary border-t-transparent"></div>
+                </div>
+            )}
+
+            {!hasMore && posts.length > 0 && (
+                <p className="text-center text-gray-400 text-sm py-8">
+                    Has llegado al final del camino. ✨
+                </p>
+            )}
+
+            {!loading && posts.length === 0 && (
                 <div className="text-center p-10 text-gray-500">
-                    <p>No posts yet. Follow someone to see their photos!</p>
+                    <p>No hay publicaciones todavía. ¡Sigue a alguien!</p>
                 </div>
             )}
         </div>

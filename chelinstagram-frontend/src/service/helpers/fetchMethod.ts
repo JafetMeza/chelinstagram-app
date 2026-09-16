@@ -12,10 +12,11 @@ import {
 
 export const RequestOptions = (
   type: RequestType,
-  data: object | FormData | string | boolean = {}
+  data: object | FormData | string | boolean = {},
+  withCreadentials = false
 ): RequestInit => {
   // 1. Get token from localStorage
-  const token = store.getState().authData.token;
+  const token = store.getState().authData.accessToken;
 
   // 2. Base Headers
   const header: HeadersInit = {
@@ -46,15 +47,20 @@ export const RequestOptions = (
     options.body = isFormData ? (data as FormData) : JSON.stringify(data);
   }
 
+  if (withCreadentials) {
+    options.credentials = "include";
+  }
+
   return options;
 };
 
 export const fetchMethod = async <T>(
   url: string,
   type = RequestType.GET,
-  data: object | FormData | string | boolean = {}
+  data: object | FormData | string | boolean = {},
+  withCredentials = false,
 ): Promise<ApiResponse<T>> => {
-  const request = RequestOptions(type, data);
+  const request = RequestOptions(type, data, withCredentials);
   try {
     const response = await fetch(url, request);
     if (!response.ok) throw response;

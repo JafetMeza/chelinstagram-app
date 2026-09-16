@@ -18,12 +18,16 @@ export const feedSchemas = {
                 }
             },
             isLikedByUser: { type: 'boolean' },
-            _count: {
-                type: 'object',
-                properties: {
-                    likes: { type: 'integer' },
-                    comments: { type: 'integer' }
-                }
+            // Reemplazamos _count por los contadores directos
+            likesCount: {
+                type: 'integer',
+                description: 'Total number of likes (denormalized)',
+                example: 0
+            },
+            commentCount: {
+                type: 'integer',
+                description: 'Total number of comments (denormalized)',
+                example: 0
             }
         }
     },
