@@ -1,4 +1,4 @@
-import Settings from "@/features/profile/pages/settings";
+import Settings from "@/features/settings/pages/settings";
 
 export default function SettingsPage() {
     return <Settings />;

@@ -1,5 +1,3 @@
-// prisma/schema.prisma
-
 generator client {
   provider        = "prisma-client-js"
 }
@@ -9,13 +7,13 @@ datasource db {
 }
 
 model User {
-  id           String         @id @default(uuid())
-  username     String         @unique
+  id           String        @id @default(uuid())
+  username     String        @unique
   password     String
   displayName  String?
   bio          String?
   avatarUrl    String?
-  createdAt    DateTime       @default(now())
+  createdAt    DateTime      @default(now())
   
   // Relations
   posts        Post[]
@@ -25,42 +23,54 @@ model User {
   messages     Message[]
 
   // Self-referential Follow system
-  following    Follow[]       @relation("UserFollowing")
-  followers    Follow[]       @relation("UserFollowers")
-  refreshToken  String?  @unique
+  following    Follow[]      @relation("UserFollowing")
+  followers    Follow[]      @relation("UserFollowers")
+  refreshToken String?       @unique
+  
+  // 🟢 NUEVO: Relación 1 a Muchos para múltiples dispositivos (Celular, Laptop, Tablet, etc.)
+  pushDevices  PushDevice[]
+}
+
+// 🟢 NUEVO MODELO: Dispositivos con notificaciones activas
+model PushDevice {
+  id           String   @id @default(uuid())
+  endpoint     String   @unique // 👈 Usamos el endpoint como identificador único del navegador
+  subscription Json     // 👈 Aquí guardamos el objeto completo con las llaves criptográficas
+  createdAt    DateTime @default(now())
+  
+  userId       String
+  user         User     @relation(fields: [userId], references: [id])
 }
 
 model Follow {
   id          String   @id @default(uuid())
   createdAt   DateTime @default(now())
 
-  // The user who is following
   followerId  String
   follower    User     @relation("UserFollowing", fields: [followerId], references: [id])
 
-  // The user being followed
   followingId String
   following   User     @relation("UserFollowers", fields: [followingId], references: [id])
 
-  @@unique([followerId, followingId]) // Prevents duplicate follows
+  @@unique([followerId, followingId]) 
 }
 
 model Post {
-  id        String    @id @default(uuid())
-  imageUrl  String
-  caption   String?
-  location  String?
-  isPinned  Boolean   @default(false)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  likesCount     Int       @default(0)
-  commentCount   Int       @default(0)
+  id           String    @id @default(uuid())
+  imageUrl     String
+  caption      String?
+  location     String?
+  isPinned     Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  likesCount   Int       @default(0)
+  commentCount Int       @default(0)
   
-  authorId  String
-  author    User      @relation(fields: [authorId], references: [id])
+  authorId     String
+  author       User      @relation(fields: [authorId], references: [id])
   
-  comments  Comment[]
-  likes     Like[]
+  comments     Comment[]
+  likes        Like[]
 }
 
 model Comment {
@@ -109,6 +119,9 @@ model Message {
   id             String       @id @default(uuid())
   content        String
   createdAt      DateTime     @default(now())
+  
+  // 🟢 NUEVO: Indicador de "visto" para fase 2 de notificaciones
+  isRead         Boolean      @default(false)
   
   conversationId String
   conversation   Conversation @relation(fields: [conversationId], references: [id])

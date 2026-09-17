@@ -6,6 +6,7 @@ export const ROUTES = {
     CHAT: (conversationId: string) => `/chat/${conversationId}`,
     EXPLORE: '/explore',
     CREATE: '/create',
+    EDIT_PROFILE: '/edit-profile',
     SETTINGS: '/settings',
     PROFILE_PATH: '/profile/:username',
     PROFILE_FEED_PATH: '/profile/:username/feed',

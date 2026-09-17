@@ -9,32 +9,43 @@ import CreateChelfiePage from "./pages/createChelfiePage";
 import SearchPage from "./pages/searchPage";
 import ProfileGridPage from "./pages/profileGridPage";
 import ProfileFeedPage from "./pages/profileFeedPage";
-import SettingsPage from "./pages/settingsPage";
+import EditProfilePage from "./pages/editProfile";
 import FollowersPage from "./pages/followersPage";
 import ChatListPage from "./pages/chatListPage";
 import ChatRoomPage from "./pages/chatRoomPage";
+import { PwaUpdatePrompt } from "./components/ui/pwaUpdatePromt";
+import { SocketProvider } from "./components/context/socketContext";
+import { PushNotificationPrompt } from "./components/ui/pushNotificationPromt";
+import SettingsPage from "./pages/settingsPage";
 
 function App() {
 
   return (
-    <ProviderLayout>
-      <AuthenticationProvider>
-        <Routes>
-          <Route path={ROUTES.LOGIN} element={<LoginPage />} />
-          <Route element={<Layout />}>
-            <Route path={ROUTES.HOME} element={<HomePage />} />
-            <Route path={ROUTES.CREATE} element={<CreateChelfiePage />} />
-            <Route path={ROUTES.EXPLORE} element={<SearchPage />} />
-            <Route path={ROUTES.PROFILE_PATH} element={<ProfileGridPage />} />
-            <Route path={ROUTES.PROFILE_FEED_PATH} element={<ProfileFeedPage />} />
-            <Route path={ROUTES.SETTINGS} element={<SettingsPage />} />
-            <Route path={ROUTES.FOLLOWERS_PATH} element={<FollowersPage />} />
-            <Route path={ROUTES.CHAT_LIST} element={<ChatListPage />} />
-            <Route path={ROUTES.CHAT_PATH} element={<ChatRoomPage />} />
-          </Route>
-        </Routes>
-      </AuthenticationProvider>
-    </ProviderLayout>
+    <>
+      <PwaUpdatePrompt />
+      <ProviderLayout>
+        <PushNotificationPrompt />
+        <AuthenticationProvider>
+          <SocketProvider>
+            <Routes>
+              <Route path={ROUTES.LOGIN} element={<LoginPage />} />
+              <Route element={<Layout />}>
+                <Route path={ROUTES.HOME} element={<HomePage />} />
+                <Route path={ROUTES.CREATE} element={<CreateChelfiePage />} />
+                <Route path={ROUTES.EXPLORE} element={<SearchPage />} />
+                <Route path={ROUTES.PROFILE_PATH} element={<ProfileGridPage />} />
+                <Route path={ROUTES.PROFILE_FEED_PATH} element={<ProfileFeedPage />} />
+                <Route path={ROUTES.EDIT_PROFILE} element={<EditProfilePage />} />
+                <Route path={ROUTES.FOLLOWERS_PATH} element={<FollowersPage />} />
+                <Route path={ROUTES.CHAT_LIST} element={<ChatListPage />} />
+                <Route path={ROUTES.CHAT_PATH} element={<ChatRoomPage />} />
+                <Route path={ROUTES.SETTINGS} element={<SettingsPage />} />
+              </Route>
+            </Routes>
+          </SocketProvider>
+        </AuthenticationProvider>
+      </ProviderLayout>
+    </>
   );
 }
 

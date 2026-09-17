@@ -1,14 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import { GetApi, PostApi } from "@/redux/middleware/httpMethod.mid"; // Import DeleteApi
+import { GetApi, PostApi } from "@/redux/middleware/httpMethod.mid";
 import { GetConversationsApi, GetFollowingApi, StartConversationApi, DeleteConversationApi } from "@/service/api.service";
-import { Conversation, SearchUser, Participant } from "@/types/schema";
+import { Conversation, SearchUser, Participant, Message } from "@/types/schema";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSearch, faTrash } from '@fortawesome/free-solid-svg-icons';
 import BridgeWidget from "../components/bridgeWidget";
 import ChatSkeleton from "../components/chatSkeleton";
 import { getAvatarSrc } from "@/helpers/imageUtils";
+
+// 1. Importar el socket
+import { useSocket } from '@/components/context/socketContext';
 
 const ChatList = () => {
     const navigate = useNavigate();
@@ -16,13 +19,73 @@ const ChatList = () => {
     const { user: currentUser } = useAppSelector(state => state.authData);
     const { ok, data, apiMethod, loading } = useAppSelector(state => state.apiData);
 
+    // 2. Extraer el socket y crear el estado de usuarios online
+    const { socket, onlineUsers } = useSocket();
+
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [following, setFollowing] = useState<SearchUser[]>([]);
     const [searchQuery, setSearchQuery] = useState("");
 
-    // MODAL STATE
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [selectedConvId, setSelectedConvId] = useState<string | null>(null);
+
+    const [typingConversations, setTypingConversations] = useState<Record<string, boolean>>({});
+    const typingTimeouts = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+    useEffect(() => {
+        if (!socket) return;
+
+        const upsertConversationPreview = (message: Message) => {
+            setConversations(prev => {
+                const idx = prev.findIndex(c => c.id === message.conversationId);
+                if (idx === -1) return prev; // conversation not loaded yet, ignore
+
+                const updated = [...prev];
+                const conv = { ...updated[idx], messages: [message] };
+                updated.splice(idx, 1);
+                return [conv, ...updated]; // move to top like a real inbox
+            });
+        };
+
+        const handleReceiveMessage = (incomingMessage: Message) => {
+            upsertConversationPreview(incomingMessage);
+        };
+
+        const handleMessageSent = (savedMessage: Message) => {
+            upsertConversationPreview(savedMessage);
+        };
+
+        // 🟢 LÓGICA DE TYPING EN LISTA DE CHATS
+        const handleUserTyping = (payload: { conversationId: string; userId: string; }) => {
+            // Marcamos como escribiendo esta conversación
+            setTypingConversations(prev => ({ ...prev, [payload.conversationId]: true }));
+
+            // Watchdog por seguridad (si se pierde el stop_typing, lo apagamos a los 3s)
+            if (typingTimeouts.current[payload.conversationId]) {
+                clearTimeout(typingTimeouts.current[payload.conversationId]);
+            }
+            typingTimeouts.current[payload.conversationId] = setTimeout(() => {
+                setTypingConversations(prev => ({ ...prev, [payload.conversationId]: false }));
+            }, 3000);
+        };
+
+        const handleUserStopTyping = (payload: { conversationId: string; userId: string; }) => {
+            if (typingTimeouts.current[payload.conversationId]) {
+                clearTimeout(typingTimeouts.current[payload.conversationId]);
+            }
+            setTypingConversations(prev => ({ ...prev, [payload.conversationId]: false }));
+        };
+
+        socket.on('receive_message', handleReceiveMessage);
+        socket.on('message_sent', handleMessageSent);
+        socket.on('user_typing', handleUserTyping);
+        socket.on('user_stop_typing', handleUserStopTyping);
+
+        return () => {
+            socket.off('receive_message', handleReceiveMessage);
+            socket.off('message_sent', handleMessageSent);
+        };
+    }, [socket]);
 
     useEffect(() => {
         dispatch(GetApi([], GetConversationsApi));
@@ -33,9 +96,18 @@ const ChatList = () => {
 
     useEffect(() => {
         if (ok) {
-            // eslint-disable-next-line react-hooks/set-state-in-effect
-            if (apiMethod === GetConversationsApi.name) setConversations(data as Conversation[]);
-            if (apiMethod === GetFollowingApi.name) setFollowing(data as SearchUser[]);
+            if (apiMethod === GetConversationsApi.name) {
+                const onSetConversations = () => {
+                    setConversations(data as Conversation[]);
+                };
+                onSetConversations();
+            }
+            if (apiMethod === GetFollowingApi.name) {
+                const onSetFollowing = () => {
+                    setFollowing(data as SearchUser[]);
+                };
+                onSetFollowing();
+            }
 
             if (apiMethod === StartConversationApi.name) {
                 const newChat = data as Conversation;
@@ -43,11 +115,13 @@ const ChatList = () => {
                 navigate(`/chat/${newChat.id}`, { state: { partner: partnerUser } });
             }
 
-            // After successful delete, refresh the list
             if (apiMethod === DeleteConversationApi.name) {
                 dispatch(GetApi([], GetConversationsApi));
-                setShowDeleteModal(false);
-                setSelectedConvId(null);
+                const onDeleteConversion = () => {
+                    setShowDeleteModal(false);
+                    setSelectedConvId(null);
+                };
+                onDeleteConversion();
             }
         }
     }, [ok, data, apiMethod, currentUser?.id, navigate, dispatch]);
@@ -57,7 +131,7 @@ const ChatList = () => {
     };
 
     const openDeleteConfirm = (e: React.MouseEvent, id: string) => {
-        e.stopPropagation(); // Prevents navigating to the chat
+        e.stopPropagation();
         setSelectedConvId(id);
         setShowDeleteModal(true);
     };
@@ -105,7 +179,9 @@ const ChatList = () => {
                         <span className="px-3 text-[10px] font-bold text-zinc-400 uppercase tracking-tight">New Message</span>
                         {filteredFollowing.map(user => (
                             <div key={user.id} onClick={() => handleStartChat(user.id ?? "")} className="flex items-center gap-3 p-3 active:bg-zinc-100 dark:active:bg-zinc-900 rounded-xl mt-1 cursor-pointer">
-                                <img src={getAvatarSrc(user.avatarUrl)} className="w-11 h-11 rounded-full object-cover border dark:border-zinc-800" />
+                                <div className="relative shrink-0">
+                                    <img src={getAvatarSrc(user.avatarUrl)} className="w-11 h-11 rounded-full object-cover border dark:border-zinc-800" />
+                                </div>
                                 <div className="flex flex-col">
                                     <span className="font-bold text-sm leading-none">@{user.username}</span>
                                     <span className="text-[11px] text-zinc-500 mt-1">{user.displayName}</span>
@@ -118,6 +194,12 @@ const ChatList = () => {
                         {conversations.map(chat => {
                             const partner = getPartner(chat.participants);
                             const lastMsg = chat.messages?.[chat.messages.length - 1];
+
+                            // 4. VERIFICAR SI ESTÁ EN LA LISTA DEL SOCKET
+                            const isOnline = partner?.id ? onlineUsers.includes(partner.id) : false;
+
+                            const isTyping = typingConversations[chat.id ?? ""] || false;
+
                             return (
                                 <div
                                     key={chat.id}
@@ -126,7 +208,9 @@ const ChatList = () => {
                                 >
                                     <div className="relative shrink-0">
                                         <img src={getAvatarSrc(partner?.avatarUrl)} className="w-14 h-14 rounded-full object-cover border-2 border-transparent" />
-                                        <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-white dark:border-black rounded-full" />
+
+                                        {/* 5. EL PUNTO DINÁMICO */}
+                                        <div className={`absolute bottom-0 right-0 w-3.5 h-3.5 border-2 border-white dark:border-black rounded-full transition-colors duration-300 ${isOnline ? 'bg-green-500' : 'bg-zinc-400 dark:bg-zinc-600'}`} />
                                     </div>
                                     <div className="flex-1 flex flex-col min-w-0">
                                         <div className="flex justify-between items-baseline">
@@ -135,11 +219,17 @@ const ChatList = () => {
                                                 {lastMsg?.createdAt ? new Date(lastMsg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                                             </span>
                                         </div>
-                                        <p className="text-xs text-zinc-500 truncate leading-relaxed">
-                                            {lastMsg?.content || "Tap to start chatting..."}
-                                        </p>
+                                        {isTyping ? (
+                                            <p className="text-xs text-blue-500 font-medium truncate leading-relaxed animate-pulse flex items-center gap-1">
+                                                <span>escribiendo...</span>
+                                            </p>
+                                        ) : (
+                                            <p className="text-xs text-zinc-500 truncate leading-relaxed">
+                                                {lastMsg?.content || "Tap to start chatting..."}
+                                            </p>
+                                        )}
                                     </div>
-                                    {/* DELETE BUTTON (Visible on hover or long-press context) */}
+                                    {/* DELETE BUTTON */}
                                     <button
                                         onClick={(e) => openDeleteConfirm(e, chat.id ?? "")}
                                         className="opacity-0 group-hover:opacity-100 p-2 text-zinc-400 hover:text-red-500 transition-all"

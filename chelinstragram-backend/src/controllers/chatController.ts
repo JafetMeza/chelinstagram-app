@@ -35,7 +35,8 @@ import { AuthRequest } from '../middleware/authMiddleware';
  *        description: Failed to fetch messages
  */
 export const getMessages = async (req: AuthRequest, res: Response) => {
-    const { conversationId } = req.params; // Conversation ID
+    const { conversationId } = req.params;
+    const currentUserId = req.user?.userId;
 
     try {
         const messages = await prisma.message.findMany({
@@ -45,10 +46,27 @@ export const getMessages = async (req: AuthRequest, res: Response) => {
                     select: { id: true, username: true, displayName: true, avatarUrl: true }
                 }
             },
-            orderBy: { createdAt: 'asc' } // Oldest to newest for the chat UI
+            orderBy: { createdAt: 'asc' }
         });
 
         res.json(messages);
+
+        // 🟢 MARCAR COMO LEÍDOS (background)
+        // Después de enviar la respuesta al frontend (res.json), 
+        // actualizamos en BD todos los mensajes de esta conversación
+        // donde YO NO SOY el sender y están como "no leídos".
+        if (currentUserId && messages.length > 0) {
+            // Se ejecuta de fondo, no bloquea el response
+            prisma.message.updateMany({
+                where: {
+                    conversationId: conversationId as string,
+                    senderId: { not: currentUserId },
+                    isRead: false
+                },
+                data: { isRead: true }
+            }).catch(err => console.error("Error actualizando isRead:", err));
+        }
+
     } catch (error) {
         res.status(500).json({ error: 'Failed to fetch messages' });
     }
