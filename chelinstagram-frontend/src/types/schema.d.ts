@@ -81,7 +81,9 @@ export interface Message {
   content?: string;
   /** @format date-time */
   createdAt?: string;
+  sender: User;
   senderId?: string;
+  conversationId: string;
 }
 
 export interface Conversation {
@@ -197,15 +199,15 @@ export type PostsDeleteData = any;
 export type PostsUserDetailData =
   | Post[]
   | {
-      data?: Post[];
-      meta?: {
-        total?: number;
-        page?: number;
-        limit?: number;
-        totalPages?: number;
-        hasNextPage?: boolean;
-      };
+    data?: Post[];
+    meta?: {
+      total?: number;
+      page?: number;
+      limit?: number;
+      totalPages?: number;
+      hasNextPage?: boolean;
     };
+  };
 
 export type InteractionsLikeCreateData = any;
 

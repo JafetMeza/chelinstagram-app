@@ -6,11 +6,13 @@ import { Url } from "@/service/helpers/urlConstants";
 interface SocketContextProps {
     socket: Socket | null;
     isConnected: boolean;
+    onlineUsers: string[];
 }
 
 const SocketContext = createContext<SocketContextProps>({
     socket: null,
-    isConnected: false
+    isConnected: false,
+    onlineUsers: []
 });
 
 export const useSocket = () => useContext(SocketContext);
@@ -18,60 +20,89 @@ export const useSocket = () => useContext(SocketContext);
 export const SocketProvider = ({ children }: { children: React.ReactNode; }) => {
     const [socket, setSocket] = useState<Socket | null>(null);
     const [isConnected, setIsConnected] = useState(false);
+    const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
 
     const { user, accessToken } = useAppSelector(state => state.authData);
 
     useEffect(() => {
-        // 🟢 CORRECCIÓN 1: Validamos que exista un token o un ID real
+        // 1. Si no hay token, destruimos cualquier socket fantasma y no hacemos nada
         if (!accessToken || !user?.id) {
-            // Si estábamos conectados, limpiamos todo
             if (socket) {
                 socket.disconnect();
-                const onSetSocket = () => {
+                const onDisconnect = () => {
                     setSocket(null);
                     setIsConnected(false);
+                    setOnlineUsers([]);
                 };
-                onSetSocket();
+                onDisconnect();
             }
             return;
         }
 
-        // 2. INICIAR CONEXIÓN
-        const socketInstance = io(Url, {
+        const baseUrl = Url.replace('/api', '');
+
+        // 2. Conectarse, PERO pasándole el accessToken como query auth
+        const socketInstance = io(baseUrl, {
             auth: {
-                token: accessToken
+                token: accessToken // Si esto está expirado, el backend lo escupirá
             },
             withCredentials: true,
-            transports: ['websocket'],
         });
 
-        // 3. LISTENERS BÁSICOS
         socketInstance.on('connect', () => {
-            console.log('⚡️ Conectado al Engine de Tiempo Real de Chelinstagram');
+            console.log('⚡️ Conectado al Engine de Tiempo Real');
             setIsConnected(true);
         });
 
-        socketInstance.on('disconnect', () => {
-            console.log('❌ Desconectado del servidor WebSocket');
+        socketInstance.on('disconnect', (reason) => {
+            console.log(`❌ Desconectado: ${reason}`);
             setIsConnected(false);
         });
 
-        const onSetSocket = () => {
+        socketInstance.on('initial_presence', (userIds: string[]) => {
+            setOnlineUsers([...userIds]);
+        });
+
+        // 3. LA CLAVE: Manejar el error de expiración
+        socketInstance.on('connect_error', (err) => {
+            console.error('🚫 Error Socket:', err.message);
+            setIsConnected(false);
+
+            // Si el backend te rechazó por token expirado, cerramos la instancia para evitar spam.
+            // Cuando Redux haga el 'refresh' y actualice el 'accessToken', 
+            // este useEffect se volverá a correr solo con el token nuevo.
+            if (err.message.includes("Acceso denegado")) {
+                socketInstance.disconnect();
+            }
+        });
+
+        socketInstance.on('user_status_change', ({ userId, status }: { userId: string; status: 'online' | 'offline'; }) => {
+            setOnlineUsers(prev => {
+                if (status === 'online') {
+                    return prev.includes(userId) ? prev : [...prev, userId];
+                }
+                return prev.filter(id => id !== userId);
+            });
+        });
+
+        const saveInstance = () => {
             setSocket(socketInstance);
         };
-        onSetSocket();
+        saveInstance();
 
-        // 4. CLEANUP
         return () => {
             socketInstance.disconnect();
+            setSocket(null);
+            setIsConnected(false);
+            setOnlineUsers([]);
         };
 
-        // 🟢 CORRECCIÓN 3: Dependemos de primitive values (user.id) para evitar reconexiones falsas
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+        // 🟢 Al poner accessToken aquí, garantizamos que cuando Redux lo refresque,
+        // el Socket se destruya y se vuelva a crear automáticamente con el nuevo token válido.
     }, [user?.id, accessToken]);
 
     return (
-        <SocketContext.Provider value={{ socket, isConnected }}>
+        <SocketContext.Provider value={{ socket, isConnected, onlineUsers }}>
             {children}
         </SocketContext.Provider>
     );
