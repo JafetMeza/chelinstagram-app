@@ -11,7 +11,7 @@
     "skipLibCheck": true,
     /* Configuración de Emisión */
     "outDir": "./dist",
-    /* No definimos rootDir ni baseUrl para evitar conflictos de jerarquía */
+    "rootDir": "./src", // 👈 Fuerza a que dist sea un reflejo exacto de src
     /* Rigor de Tipado */
     "strict": true,
     "noImplicitAny": true,
@@ -26,8 +26,7 @@
     "emitDecoratorMetadata": true
   },
   "include": [
-    "src/**/*.ts",
-    "prisma/**/*.ts"
+    "src/**/*.ts" // 👈 Solo compilamos lo que está en src
   ],
   "exclude": [
     "node_modules",

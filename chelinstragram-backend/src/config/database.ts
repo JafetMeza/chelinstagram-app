@@ -1,13 +1,13 @@
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { PrismaClient } from '../generated/prisma/client';
+import { PrismaClient } from '@prisma/client';
 import * as dotenv from 'dotenv';
 import path from 'path';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
 if (isDev) {
-    const envPath = path.join(__dirname, "../.env");
+    const envPath = path.join(__dirname, "../../.env");
     dotenv.config({ path: envPath });
 }
 
