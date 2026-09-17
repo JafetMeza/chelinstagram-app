@@ -33,7 +33,7 @@ const Layout = () => {
 
     return (
         // 1. Usamos min-h-[100dvh] en lugar de min-h-screen para evitar problemas con la barra de Safari/Chrome en celular
-        <div className="min-h-[100dvh] bg-white dark:bg-black flex flex-col lg:flex-row transition-colors duration-300">
+        <div className="min-h-dvh bg-white dark:bg-black flex flex-col lg:flex-row transition-colors duration-300">
 
             {/* 2. Ocultamos el header móvil si estamos en Settings para evitar doble-header */}
             {!isSettingsRoute && <MobileHeader isDark={isDark} toggleTheme={toggleTheme} />}
