@@ -1,7 +1,9 @@
 import { useContext } from 'react';
 import { AuthenticationContext } from '@/components/context/authenticationContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faMoon, faSun, faRightFromBracket } from '@fortawesome/free-solid-svg-icons';
+import { faMoon, faSun, faRightFromBracket, faGear } from '@fortawesome/free-solid-svg-icons';
+import { Link } from "react-router";
+import { ROUTES } from "@/routes";
 
 interface MobileHeaderProps {
     toggleTheme: () => void;
@@ -30,6 +32,14 @@ const MobileHeader = ({ toggleTheme, isDark }: MobileHeaderProps) => {
                         className={`text-lg transition-colors ${!isDark ? 'text-yellow-400' : 'text-zinc-700'}`}
                     />
                 </button>
+
+                <Link
+                    to={ROUTES.SETTINGS}
+                    className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-zinc-800 text-gray-700 dark:text-zinc-400 hover:text-blue-500 transition-colors"
+                    title="Settings"
+                >
+                    <FontAwesomeIcon icon={faGear} className="text-xl" />
+                </Link>
 
                 {/* Logout Button */}
                 <button

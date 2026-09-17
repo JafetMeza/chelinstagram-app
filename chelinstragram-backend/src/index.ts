@@ -21,6 +21,7 @@ import http from 'http';
 import { Server } from 'socket.io';
 import jwt from 'jsonwebtoken';
 import { handleSockets } from './sockets/socketHandler';
+import { subscribePush, unsubscribePush } from "./controllers/notificationController";
 
 const corsOptions = {
     origin: [
@@ -174,6 +175,10 @@ app.get('/api/users/search', authenticateToken, searchUsers);
 app.get('/api/users/:username', authenticateToken, getUserByUserName);
 app.get('/api/users/:username/followers', authenticateToken, getFollowers);
 app.get('/api/users/:username/following', authenticateToken, getFollowing);
+
+// Notification Routes
+app.post("/api/notifications/subscribe", authenticateToken, subscribePush);
+app.delete("/api/notifications/unsubscribe", authenticateToken, unsubscribePush);
 
 // 4. ESCUCHAR CONEXIONES
 io.on('connection', (socket) => {

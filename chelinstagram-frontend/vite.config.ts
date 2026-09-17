@@ -12,6 +12,9 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
       registerType: 'autoUpdate',
       // Enable PWA in `vite dev` so you can test without building every time
       devOptions: {

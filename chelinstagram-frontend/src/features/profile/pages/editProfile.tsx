@@ -8,7 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { UserProfile } from "@/types/schema";
 import { compressAndUpload, getAvatarSrc } from "@/helpers/imageUtils";
 
-const Settings = () => {
+const EditProfile = () => {
     const dispatch = useAppDispatch();
     const navigate = useNavigate();
     const { data, loading, ok, apiMethod } = useAppSelector(state => state.apiData);
@@ -144,4 +144,4 @@ const Settings = () => {
     );
 };
 
-export default Settings;
+export default EditProfile;
