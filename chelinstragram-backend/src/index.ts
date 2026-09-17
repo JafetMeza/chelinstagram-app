@@ -20,6 +20,7 @@ import cookieParser from "cookie-parser";
 import http from 'http';
 import { Server } from 'socket.io';
 import jwt from 'jsonwebtoken';
+import { handleSockets } from './sockets/socketHandler';
 
 const corsOptions = {
     origin: [
@@ -139,6 +140,7 @@ io.use((socket, next) => {
 });
 
 // -------------------- API ROUTES -----------------------------------
+handleSockets(io);
 // Auth Route
 app.post('/api/auth/login', login);
 app.post('/api/auth/refresh', refresh);
@@ -186,7 +188,7 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
+server.listen(PORT, () => {
     console.log(`🚀 API: http://localhost:${PORT}`);
     console.log(`📖 Docs: http://localhost:${PORT}/api-docs`);
     console.log(`🔧 Mode: ${process.env.NODE_ENV || 'development'}`);
