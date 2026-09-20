@@ -32,7 +32,8 @@ export interface UserProfile {
   };
   posts?: {
     id?: string;
-    imageUrl?: string;
+    mediaUrl?: string;               // 👈 CAMBIADO
+    mediaType?: 'IMAGE' | 'VIDEO';   // 👈 NUEVO
   }[];
 }
 
@@ -104,7 +105,8 @@ export interface SendMessageRequest {
 
 export interface Post {
   id?: string;
-  imageUrl?: string;
+  mediaUrl?: string;               // 👈 CAMBIADO
+  mediaType?: 'IMAGE' | 'VIDEO';   // 👈 NUEVO
   caption?: string | null;
   location?: string | null;
   isPinned?: boolean;
@@ -136,7 +138,7 @@ export interface CreatePostRequest {
   /** @default false */
   isPinned?: boolean;
   /** @format binary */
-  image: File;
+  media: File;                     // 👈 CAMBIADO (antes era image)
 }
 
 export interface UpdatePostRequest {

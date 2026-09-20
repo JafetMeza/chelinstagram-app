@@ -7,7 +7,7 @@ import { UserProfile } from "@/types/schema";
 import { ROUTES } from "@/routes";
 import { Url } from "@/service/helpers/urlConstants";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCircleNotch, faLock, faThumbtack } from '@fortawesome/free-solid-svg-icons';
+import { faCircleNotch, faLock, faThumbtack, faVideo } from '@fortawesome/free-solid-svg-icons'; // 👈 Importamos faVideo
 import { getAvatarSrc } from "@/helpers/imageUtils";
 import { useInfiniteScroll } from "@/components/hooks/useInfiniteScroll";
 import { setProfilePosts, setScrollPosition } from "@/redux/ducks/profileState";
@@ -21,7 +21,6 @@ const ProfileGrid = () => {
     const { user: currentUser } = useAppSelector(state => state.authData);
     const { ok, data, loading: apiLoading, apiMethod } = useAppSelector(state => state.apiData);
 
-    // --- SELECTORES DE REDUX ---
     const {
         posts: persistedPosts,
         scrollPosition,
@@ -37,19 +36,15 @@ const ProfileGrid = () => {
 
     const { getYPosition, scrollTo, scrollToTop } = useScroll();
 
-    // Cambiado a 18 según tu código
     const GRID_LIMIT = 18;
 
     const extraParams = useMemo(() => [username ?? ""], [username]);
 
-    // Verificamos si los posts en Redux pertenecen al usuario actual
     const isSameUser = currentUsername === username;
-    // 🟢 ESTA ES TU LISTA REAL: Si es el mismo usuario, usamos Redux; si no, empezamos de cero.
     const displayPosts = isSameUser ? persistedPosts : [];
 
-    // --- CONFIGURACIÓN DEL HOOK ---
     const {
-        posts: hookPosts, // Los usamos solo para sincronizar
+        posts: hookPosts,
         loading: loadingPosts,
         hasMore: hookHasMore,
         lastElementRef,
@@ -58,13 +53,11 @@ const ProfileGrid = () => {
         apiService: GetUserPostsApi,
         extraParams: extraParams,
         limit: canSeeContent ? GRID_LIMIT : 0,
-        // Hidratamos el hook para que sepa en qué página va
         initialPage: isSameUser ? persistedPage : 1,
         initialPosts: displayPosts,
         initialHasMore: isSameUser ? persistedHasMore : true
     });
 
-    // --- EFECTO 1: SINCRONIZAR HOOK -> REDUX ---
     useEffect(() => {
         if (hookPosts.length > 0 && username) {
             dispatch(setProfilePosts({
@@ -76,26 +69,21 @@ const ProfileGrid = () => {
         }
     }, [hookPosts, hookPage, hookHasMore, username, dispatch]);
 
-    // --- EFECTO 2: RESTAURACIÓN DE SCROLL (Solo Grid) ---
     useLayoutEffect(() => {
-        // Si regresamos de ver un post del mismo usuario, restauramos la posición
         if (isSameUser && scrollPosition > 0 && persistedPosts.length > 0) {
             scrollTo(scrollPosition);
         } else {
-            // 🟢 EL FIX: Si venimos del Home u otra página, forzamos el scroll al top absoluto
             scrollToTop();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isSameUser, username]);
 
-    // --- EFECTO 3: CARGA DE PERFIL ---
     useEffect(() => {
         if (username) {
             dispatch(GetApi([username], GetUserByUserNameApi));
         }
     }, [username, dispatch]);
 
-    // --- EFECTO 4: SINCRONIZACIÓN DE PERFIL ---
     useEffect(() => {
         let isMounted = true;
         if (ok && apiMethod === GetUserByUserNameApi.name && data) {
@@ -111,9 +99,7 @@ const ProfileGrid = () => {
         return () => { isMounted = false; };
     }, [ok, data, apiMethod, profile]);
 
-    // --- HANDLERS ---
     const handlePostClick = (postId: string) => {
-        // Guardamos scroll solo del Grid
         const currentY = getYPosition();
         dispatch(setScrollPosition(currentY));
         navigate(`${ROUTES.PROFILE_FEED(username ?? "")}?post=${postId}`);
@@ -186,8 +172,10 @@ const ProfileGrid = () => {
                 {canSeeContent ? (
                     <>
                         <div className="grid grid-cols-3 gap-0.5 p-0.5">
-                            {/* 🟢 SOLUCIÓN: Mapeamos displayPosts (Redux), no hookPosts */}
                             {displayPosts.map((post, index) => {
+                                // 🟢 CAMBIO: Usamos mediaUrl en vez de imageUrl
+                                const mediaUrl = post.mediaUrl?.startsWith('http') ? post.mediaUrl : `${Url}${post.mediaUrl}`;
+
                                 return (
                                     <div
                                         key={post.id}
@@ -195,7 +183,20 @@ const ProfileGrid = () => {
                                         onClick={() => handlePostClick(post.id ?? "")}
                                         className="aspect-square relative cursor-pointer bg-zinc-100 dark:bg-zinc-900 group"
                                     >
-                                        <img src={post.imageUrl?.startsWith('http') ? post.imageUrl : `${Url}${post.imageUrl}`} alt="" className="w-full h-full object-cover" />
+                                        {/* 🟢 CAMBIO: Renderizamos foto o video miniatura */}
+                                        {post.mediaType === 'VIDEO' ? (
+                                            <video src={mediaUrl} className="w-full h-full object-cover" muted loop playsInline />
+                                        ) : (
+                                            <img src={mediaUrl} alt="" className="w-full h-full object-cover" />
+                                        )}
+
+                                        {/* 🟢 NUEVO: Icono de Video en la esquina superior derecha si es video */}
+                                        {post.mediaType === 'VIDEO' && (
+                                            <div className="absolute top-2 right-2 z-10">
+                                                <FontAwesomeIcon icon={faVideo} className="text-white text-sm drop-shadow-md" />
+                                            </div>
+                                        )}
+
                                         {post.isPinned && (
                                             <div className="absolute top-2 right-2 z-10">
                                                 <FontAwesomeIcon icon={faThumbtack} className="text-white text-[10px] -rotate-45 drop-shadow-md" />

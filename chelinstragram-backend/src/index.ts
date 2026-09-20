@@ -61,12 +61,16 @@ if (useLocalStorage) {
     console.log(`[Storage] ☁️ Using Cloud Storage (Supabase/External)`);
 }
 
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ limit: '10mb', extended: true }));
+app.use(express.json({ limit: '100mb' }));
+app.use(express.urlencoded({ limit: '100mb', extended: true }));
 
 // --- MULTER CONFIGURATION START ---
+// Aumentamos el límite de Multer a 100MB para videos
 const storage = multer.memoryStorage();
-const upload = multer({ storage: storage });
+const upload = multer({
+    storage: storage,
+    limits: { fileSize: 100 * 1024 * 1024 } // 100 MB
+});
 // --- MULTER CONFIGURATION END ---
 
 app.use(cors(corsOptions));
@@ -154,7 +158,7 @@ app.post('/api/chat/start', authenticateToken, startConversation);
 app.delete('/api/chat/conversations/:conversationId', authenticateToken, deleteConversation);
 
 // Post Routes
-app.post('/api/posts', authenticateToken, upload.single('image'), createPost);
+app.post('/api/posts', authenticateToken, upload.single('media'), createPost);
 app.get('/api/posts', authenticateToken, getFeed);
 app.patch('/api/posts/:postId', authenticateToken, updatePost);
 app.delete('/api/posts/:postId', authenticateToken, deletePost);

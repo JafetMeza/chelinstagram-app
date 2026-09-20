@@ -34,7 +34,8 @@ export const userSchemas = {
                     type: 'object',
                     properties: {
                         id: { type: 'string' },
-                        imageUrl: { type: 'string' }
+                        mediaUrl: { type: 'string' }, // 👈 CAMBIADO
+                        mediaType: { type: 'string', enum: ['IMAGE', 'VIDEO'] } // 👈 NUEVO
                     }
                 }
             }

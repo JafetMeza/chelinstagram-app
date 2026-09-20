@@ -1,11 +1,13 @@
 import { Post, Comment } from "@/types/schema";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faHeart as faHeartReg, faComment as faCommentReg, faEdit } from '@fortawesome/free-regular-svg-icons';
-import { faEllipsisVertical, faHeart as faHeartSolid, faLocationDot, faThumbtack, faTrash, faXmark } from '@fortawesome/free-solid-svg-icons';
+// 🟢 IMPORTANTE: Añadidos faVolumeMute y faVolumeUp
+import { faEllipsisVertical, faHeart as faHeartSolid, faLocationDot, faThumbtack, faTrash, faXmark, faVolumeMute, faVolumeUp } from '@fortawesome/free-solid-svg-icons';
 import { ROUTES } from "@/routes";
 import { useNavigate } from "react-router";
 import { useRef, useState } from "react";
 import { getAvatarSrc } from "@/helpers/imageUtils";
+import { Url } from "@/service/helpers/urlConstants";
 
 interface PostCardProps {
     post: Post;
@@ -38,7 +40,11 @@ const PostCard = ({
     const [heartPos, setHeartPos] = useState<{ x: number, y: number; } | null>(null);
     const lastTap = useRef<number>(0);
 
-    const fullImageUrl = getAvatarSrc(post.imageUrl);
+    // 🟢 NUEVO: Estado para el volumen en el feed
+    const [isMuted, setIsMuted] = useState(true);
+
+    const rawMediaUrl = post.mediaUrl || "";
+    const fullMediaUrl = rawMediaUrl.startsWith('http') ? rawMediaUrl : `${Url}${rawMediaUrl}`;
 
     const handleProfileClick = () => {
         if (!disableProfileClick && post.author?.username) {
@@ -60,14 +66,12 @@ const PostCard = ({
 
         if (now - lastTap.current < DOUBLE_TAP_DELAY) {
             if (post.id) {
-                // 1. Calculamos las coordenadas relativas al div de la imagen
                 const rect = e.currentTarget.getBoundingClientRect();
                 const x = e.clientX - rect.left;
                 const y = e.clientY - rect.top;
 
                 onToggleLike(post.id);
 
-                // 2. Guardamos la posición y disparamos la animación
                 setHeartPos({ x, y });
                 setTimeout(() => setHeartPos(null), 700);
             }
@@ -154,13 +158,40 @@ const PostCard = ({
 
             <div
                 onClick={handleImageClick}
-                className="w-full aspect-square relative bg-gray-100 dark:bg-zinc-900 cursor-pointer select-none"
+                className="w-full aspect-square relative bg-gray-100 dark:bg-zinc-900 cursor-pointer select-none group"
             >
-                <img
-                    src={fullImageUrl}
-                    alt={post.caption || 'Post Image'}
-                    className="w-full h-full object-cover"
-                />
+                {post.mediaType === 'VIDEO' ? (
+                    <>
+                        <video
+                            src={fullMediaUrl}
+                            // 🟢 CAMBIO: object-contain bg-black para no cortar videos horizontales
+                            className="w-full h-full object-contain bg-black"
+                            controls={false}
+                            autoPlay
+                            muted={isMuted}
+                            loop
+                            playsInline
+                        />
+                        {/* 🟢 NUEVO: Botón interactivo de volumen en el feed */}
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setIsMuted(!isMuted);
+                            }}
+                            className="absolute bottom-3 right-3 bg-black/70 hover:bg-black/90 backdrop-blur-md text-white w-9 h-9 flex items-center justify-center rounded-full shadow-lg transition-transform active:scale-95 z-30"
+                        >
+                            <FontAwesomeIcon icon={isMuted ? faVolumeMute : faVolumeUp} className="text-sm" />
+                        </button>
+                    </>
+                ) : (
+                    <img
+                        src={fullMediaUrl}
+                        alt={post.caption || 'Post Image'}
+                        // Las imágenes se mantienen en object-cover para preservar el formato cuadrado original
+                        className="w-full h-full object-cover"
+                    />
+                )}
 
                 {heartPos && (
                     <div
@@ -168,7 +199,6 @@ const PostCard = ({
                         style={{
                             left: heartPos.x,
                             top: heartPos.y,
-                            // El translate(-50%, -50%) centra el corazón exactamente donde tocó el dedo
                             transform: 'translate(-50%, -50%)'
                         }}
                     >
@@ -195,7 +225,6 @@ const PostCard = ({
                         <FontAwesomeIcon icon={isLiked ? faHeartSolid : faHeartReg} />
                     </button>
 
-                    {/* 🟢 SOLUCIÓN: Cambiado 'onToggleLike' por 'onOpenComments' */}
                     <button
                         type="button"
                         onClick={(e) => {
