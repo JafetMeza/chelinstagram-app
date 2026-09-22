@@ -83,6 +83,9 @@ export interface Message {
   /** @format date-time */
   createdAt?: string;
   senderId?: string;
+  conversationId?: string;
+  senderId?: string;
+  sender?: User;
 }
 
 export interface Conversation {
@@ -187,11 +190,23 @@ export interface StoryGroup {
 export interface CreateStoryRequest {
   /** @format binary */
   media: File;
+  /**
+   * Video only: trim start (seconds)
+   * @example 0
+   */
   startTime?: number;
+  /**
+   * Video only: trim end (seconds)
+   * @example 10
+   */
   endTime?: number;
+  /** @default false */
   isMuted?: boolean;
+  /** Video only: crop origin X in source pixels */
   cropX?: number;
+  /** Video only: crop origin Y in source pixels */
   cropY?: number;
+  /** Video only: crop square size in source pixels */
   cropSize?: number;
   /**
    * How long the story stays visible, in minutes (5 min to 3 days)
