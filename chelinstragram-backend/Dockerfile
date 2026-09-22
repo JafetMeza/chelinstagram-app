@@ -6,17 +6,15 @@ WORKDIR /app
 # Instalamos pnpm globalmente
 RUN npm install -g pnpm
 
-# Copiamos los archivos de dependencias
+# Copiamos los archivos de dependencias y la carpeta prisma
 COPY package.json pnpm-lock.yaml ./
+COPY prisma ./prisma
 
-# Instalamos TODAS las dependencias (incluyendo ffmpeg-static que hace la magia)
+# Instalamos TODAS las dependencias (el postinstall de prisma generate ahora sí encontrará el schema)
 RUN pnpm install
 
 # Copiamos el resto del código
 COPY . .
-
-# Generamos Prisma
-RUN npx prisma generate
 
 # Construimos el proyecto (si usas TypeScript)
 RUN pnpm build
