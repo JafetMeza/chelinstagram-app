@@ -13,10 +13,13 @@ model User {
   displayName  String?
   bio          String?
   avatarUrl    String?
+  role         Role          @default(USER)
   createdAt    DateTime      @default(now())
   
   // Relations
   posts        Post[]
+  stories      Story[]
+  storyViews   StoryView[]   // 👈 NUEVO: Historias que ha visto este usuario
   comments     Comment[]
   likes        Like[]
   participants Participant[]
@@ -27,15 +30,18 @@ model User {
   followers    Follow[]      @relation("UserFollowers")
   refreshToken String?       @unique
   
-  // 🟢 NUEVO: Relación 1 a Muchos para múltiples dispositivos (Celular, Laptop, Tablet, etc.)
   pushDevices  PushDevice[]
 }
 
-// 🟢 NUEVO MODELO: Dispositivos con notificaciones activas
+enum Role {
+  USER
+  ROOT
+}
+
 model PushDevice {
   id           String   @id @default(uuid())
-  endpoint     String   @unique // 👈 Usamos el endpoint como identificador único del navegador
-  subscription Json     // 👈 Aquí guardamos el objeto completo con las llaves criptográficas
+  endpoint     String   @unique 
+  subscription Json     
   createdAt    DateTime @default(now())
   
   userId       String
@@ -57,7 +63,8 @@ model Follow {
 
 model Post {
   id           String    @id @default(uuid())
-  imageUrl     String
+  mediaUrl     String    
+  mediaType    MediaType @default(IMAGE)
   caption      String?
   location     String?
   isPinned     Boolean   @default(false)
@@ -71,6 +78,39 @@ model Post {
   
   comments     Comment[]
   likes        Like[]
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+}
+
+model Story {
+  id          String      @id @default(uuid())
+  mediaUrl    String    
+  mediaType   MediaType   @default(IMAGE) 
+  duration    Int         @default(15) 
+  expiresAt   DateTime  
+  createdAt   DateTime    @default(now())
+  
+  authorId    String
+  author      User        @relation(fields: [authorId], references: [id])
+
+  views       StoryView[] // 👈 NUEVO: Relación hacia la tabla de vistas
+}
+
+// 🟢 NUEVO MODELO: Vistas de Historias
+model StoryView {
+  id        String   @id @default(uuid())
+  viewedAt  DateTime @default(now())
+
+  storyId   String
+  story     Story    @relation(fields: [storyId], references: [id], onDelete: Cascade) // 👈 Cascade: si se borra la historia, se borran sus vistas
+  
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([storyId, userId]) // Solo cuenta una vista por usuario por historia
 }
 
 model Comment {
@@ -120,7 +160,6 @@ model Message {
   content        String
   createdAt      DateTime     @default(now())
   
-  // 🟢 NUEVO: Indicador de "visto" para fase 2 de notificaciones
   isRead         Boolean      @default(false)
   
   conversationId String

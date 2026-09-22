@@ -1,10 +1,13 @@
 import { Server, Socket } from 'socket.io';
 import { prisma } from "../config/database";
-import { sendPushToUser } from '../controllers/notificationController'; // 👈 Importamos la utilidad
+import { sendPushToUser } from '../controllers/notificationController';
 
 const onlineUsers = new Map<string, string>();
+let ioInstance: Server | null = null; // 🟢 NEW: lets REST controllers (storyController) emit too
 
 export const handleSockets = (io: Server) => {
+    ioInstance = io; // 🟢 NEW
+
     io.on('connection', (socket: Socket) => {
         const user = socket.data.user;
         const currentUserId = user.id || user.userId || user.sub;
@@ -27,7 +30,7 @@ export const handleSockets = (io: Server) => {
                         content,
                         conversationId,
                         senderId: currentUserId,
-                        isRead: false // 👈 Guardamos el mensaje como no leído por defecto
+                        isRead: false
                     },
                     include: {
                         sender: { select: { id: true, username: true, avatarUrl: true } }
@@ -37,10 +40,8 @@ export const handleSockets = (io: Server) => {
                 const receiverSocketId = onlineUsers.get(receiverId);
 
                 if (receiverSocketId) {
-                    // Si está conectado, mandamos por WebSocket
                     io.to(receiverSocketId).emit('receive_message', savedMessage);
                 } else {
-                    // 🟢 SI NO ESTÁ CONECTADO, MANDAMOS NOTIFICACIÓN PUSH
                     await sendPushToUser(receiverId, {
                         title: `Nuevo mensaje de ${savedMessage.sender.username}`,
                         body: content,
@@ -48,7 +49,6 @@ export const handleSockets = (io: Server) => {
                     });
                 }
 
-                // Asegúrate de devolver el tempId (si lo enviaste desde el front) para confirmar el envío
                 socket.emit('message_sent', { ...savedMessage, tempId });
             } catch (error) {
                 console.error("Error al guardar mensaje de socket:", error);
@@ -56,13 +56,33 @@ export const handleSockets = (io: Server) => {
             }
         });
 
-        // ... (resto de tus listeners disconnect, typing, stop_typing quedan igual)
         socket.on('disconnect', () => {
             console.log(`🔴 [Socket] ${user.username} se ha desconectado.`);
             onlineUsers.delete(currentUserId);
             io.emit('user_status_change', { userId: currentUserId, status: 'offline' });
         });
-
-        // ... (código de typing omitido para brevedad)
     });
+};
+
+/**
+ * 🟢 NEW: Called from storyController right after a story is created.
+ * Mirrors the exact same online/offline fallback pattern as `send_message`:
+ * live socket event if the follower is connected, web push if they're not.
+ */
+export const notifyNewStory = async (followerIds: string[], story: any) => {
+    if (!ioInstance) return;
+
+    for (const followerId of followerIds) {
+        const socketId = onlineUsers.get(followerId);
+
+        if (socketId) {
+            ioInstance.to(socketId).emit('new_story', story);
+        } else {
+            await sendPushToUser(followerId, {
+                title: `${story.author.username} added a new story`,
+                body: 'Tap to view',
+                url: `/stories/${story.author.username}`
+            });
+        }
+    }
 };

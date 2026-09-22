@@ -32,7 +32,8 @@ export interface UserProfile {
   };
   posts?: {
     id?: string;
-    imageUrl?: string;
+    mediaUrl?: string;
+    mediaType?: "IMAGE" | "VIDEO";
   }[];
 }
 
@@ -81,9 +82,10 @@ export interface Message {
   content?: string;
   /** @format date-time */
   createdAt?: string;
-  sender: User;
   senderId?: string;
-  conversationId: string;
+  conversationId?: string;
+  senderId?: string;
+  sender?: User;
 }
 
 export interface Conversation {
@@ -104,7 +106,8 @@ export interface SendMessageRequest {
 
 export interface Post {
   id?: string;
-  imageUrl?: string;
+  mediaUrl?: string;
+  mediaType?: "IMAGE" | "VIDEO";
   caption?: string | null;
   location?: string | null;
   isPinned?: boolean;
@@ -116,15 +119,9 @@ export interface Post {
     avatarUrl?: string;
   };
   isLikedByUser?: boolean;
-  /**
-   * Total number of likes (denormalized)
-   * @example 0
-   */
+  /** @example 0 */
   likesCount?: number;
-  /**
-   * Total number of comments (denormalized)
-   * @example 0
-   */
+  /** @example 0 */
   commentCount?: number;
 }
 
@@ -136,7 +133,7 @@ export interface CreatePostRequest {
   /** @default false */
   isPinned?: boolean;
   /** @format binary */
-  image: File;
+  media: File;
 }
 
 export interface UpdatePostRequest {
@@ -166,12 +163,71 @@ export interface CommentRequest {
   content: string;
 }
 
+export interface Story {
+  id?: string;
+  mediaUrl?: string;
+  mediaType?: "IMAGE" | "VIDEO";
+  /** @example 15 */
+  duration?: number;
+  /** @format date-time */
+  expiresAt?: string;
+  /** @format date-time */
+  createdAt?: string;
+  isViewedByUser?: boolean;
+}
+
+/** All active stories for one author, as shown in the story tray */
+export interface StoryGroup {
+  author?: {
+    username?: string;
+    displayName?: string | null;
+    avatarUrl?: string | null;
+  };
+  hasUnseen?: boolean;
+  stories?: Story[];
+}
+
+export interface CreateStoryRequest {
+  /** @format binary */
+  media: File;
+  /**
+   * Video only: trim start (seconds)
+   * @example 0
+   */
+  startTime?: number;
+  /**
+   * Video only: trim end (seconds)
+   * @example 10
+   */
+  endTime?: number;
+  /** @default false */
+  isMuted?: boolean;
+  /** Video only: crop origin X in source pixels */
+  cropX?: number;
+  /** Video only: crop origin Y in source pixels */
+  cropY?: number;
+  /** Video only: crop square size in source pixels */
+  cropSize?: number;
+  /**
+   * How long the story stays visible, in minutes (5 min to 3 days)
+   * @min 5
+   * @max 4320
+   * @default 1440
+   */
+  lifetimeMinutes?: number;
+}
+
+export interface StoryViewer {
+  username?: string;
+  displayName?: string | null;
+  avatarUrl?: string | null;
+  /** @format date-time */
+  viewedAt?: string;
+}
+
 export type AuthLoginCreateData = AuthResponse;
 
-export interface AuthRefreshCreateData {
-  /** The new short-lived JWT */
-  accessToken?: string;
-}
+export type AuthRefreshCreateData = AuthResponse;
 
 export type ChatConversationsDetailData = Message[];
 
@@ -214,6 +270,16 @@ export type InteractionsLikeCreateData = any;
 export type InteractionsCommentCreateData = Comment;
 
 export type InteractionsCommentsDetailData = Comment[];
+
+export type StoriesCreateData = Story;
+
+export type StoriesListData = StoryGroup[];
+
+export type StoriesViewCreateData = any;
+
+export type StoriesViewersListData = StoryViewer[];
+
+export type StoriesDeleteData = any;
 
 export type UsersProfileListData = UserProfile;
 

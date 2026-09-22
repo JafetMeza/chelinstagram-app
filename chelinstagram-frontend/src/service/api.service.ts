@@ -1,4 +1,4 @@
-import { AuthResponse, CommentRequest, Conversation, LoginRequest, Message, Post, PostsUserDetailData, SearchUser, SendMessageRequest, UpdatePostRequest, UserProfile } from "@/types/schema";
+import { AuthResponse, CommentRequest, Conversation, LoginRequest, Message, Post, PostsUserDetailData, SearchUser, SendMessageRequest, Story, StoryGroup, StoryViewer, UpdatePostRequest, UserProfile } from "@/types/schema";
 import { ApiResponse, RequestType } from "./helpers/serviceConstants";
 import { fetchMethod } from "./helpers/fetchMethod";
 import { API_ROUTES } from "./helpers/urlConstants";
@@ -82,3 +82,19 @@ export const UpdateProfileApi = async (data: FormData): Promise<ApiResponse<void
 
 export const ToggleFollowApi = async (followingId: string): Promise<ApiResponse<void>> =>
     await fetchMethod<void>(API_ROUTES.USERS.FOLLOW, RequestType.POST, { followingId });
+
+// --- STORIES --- 🟢 NEW
+export const GetStoriesApi = async (): Promise<ApiResponse<StoryGroup[]>> =>
+    await fetchMethod<StoryGroup[]>(API_ROUTES.STORIES.BASE, RequestType.GET);
+
+export const CreateStoryApi = async (data: FormData): Promise<ApiResponse<Story>> =>
+    await fetchMethod<Story>(API_ROUTES.STORIES.BASE, RequestType.POST, data);
+
+export const ViewStoryApi = async (storyId: string): Promise<ApiResponse<void>> =>
+    await fetchMethod<void>(API_ROUTES.STORIES.VIEW(storyId), RequestType.POST, {});
+
+export const GetStoryViewersApi = async (storyId: string): Promise<ApiResponse<StoryViewer[]>> =>
+    await fetchMethod<StoryViewer[]>(API_ROUTES.STORIES.VIEWERS(storyId), RequestType.GET);
+
+export const DeleteStoryApi = async (storyId: string): Promise<ApiResponse<void>> =>
+    await fetchMethod<void>(API_ROUTES.STORIES.BY_ID(storyId), RequestType.DELETE);
