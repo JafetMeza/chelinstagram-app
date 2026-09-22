@@ -2,16 +2,15 @@ import fs from 'fs';
 import path from 'path';
 import { createClient } from '@supabase/supabase-js';
 import ffmpeg from 'fluent-ffmpeg';
-import ffmpegInstaller from 'ffmpeg-static'; // 🟢 NUEVA IMPORTACIÓN (Binario de FFmpeg)
+import ffmpegInstaller from 'ffmpeg-static';
 import ffprobeInstaller from 'ffprobe-static';
 import { randomUUID } from 'crypto';
 
-// 🟢 LE DECIMOS A FLUENT-FFMPEG DÓNDE ESTÁ EL BINARIO PARA EVITAR EL ERROR 500
+// 🟢 LE DECIMOS A FLUENT-FFMPEG DÓNDE ESTÁ EL BINARIO
 if (ffmpegInstaller) {
     ffmpeg.setFfmpegPath(ffmpegInstaller);
 }
 
-// 🟢 NEW: without this, fluent-ffmpeg's ffprobe() call throws "Cannot find ffprobe"
 if (ffprobeInstaller?.path) {
     ffmpeg.setFfprobePath(ffprobeInstaller.path);
 }
@@ -21,9 +20,6 @@ const supabaseUrl = process.env.SUPABASE_URL as string;
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY as string;
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-/**
- * Función Híbrida: Procesa y sube fotos y videos
- */
 export interface VideoProcessingOptions {
     startTime?: number;
     endTime?: number;
@@ -39,9 +35,6 @@ export const uploadImage = async (
     return isVideo ? processAndUploadVideo(file, videoOptions) : processAndUploadPhoto(file);
 };
 
-/**
- * Procesa Fotos (Tu lógica original intacta)
- */
 const processAndUploadPhoto = async (file: Express.Multer.File): Promise<string> => {
     const useLocalStorage = process.env.USE_LOCAL_STORAGE === 'true';
 
@@ -83,8 +76,9 @@ const processAndUploadPhoto = async (file: Express.Multer.File): Promise<string>
     }
 };
 
-// Extracts a square that may extend past the source frame on any side,
-// by padding the source (with black) just enough to contain it, then cropping.
+// 🟢 FIX 1: Función para asegurar que un número siempre sea par (Requisito de H.264)
+const toEven = (n: number) => Math.round(n / 2) * 2;
+
 const buildCropOrPadFilters = (
     crop: { x: number; y: number; size: number; },
     sourceW: number,
@@ -92,7 +86,7 @@ const buildCropOrPadFilters = (
     outSize = 720
 ): string[] => {
     const { x, y, size } = crop;
-    if (!size || size <= 0) return [`scale=${outSize}:${outSize}`];
+    if (!size || size <= 0) return [`scale=${toEven(outSize)}:${toEven(outSize)}`];
 
     const padLeft = Math.max(0, -x);
     const padTop = Math.max(0, -y);
@@ -104,18 +98,17 @@ const buildCropOrPadFilters = (
     if (padLeft || padTop || padRight || padBottom) {
         const paddedW = sourceW + padLeft + padRight;
         const paddedH = sourceH + padTop + padBottom;
-        // 🟢 FIX: all-named args — avoids mixing positional/named syntax in one filter
-        filters.push(`pad=w=${paddedW}:h=${paddedH}:x=${padLeft}:y=${padTop}:color=black`);
-        filters.push(`crop=w=${size}:h=${size}:x=${x + padLeft}:y=${y + padTop}`);
+        // 🟢 FIX 1: Envolvemos todas las dimensiones y coordenadas en toEven()
+        filters.push(`pad=w=${toEven(paddedW)}:h=${toEven(paddedH)}:x=${toEven(padLeft)}:y=${toEven(padTop)}:color=black`);
+        filters.push(`crop=w=${toEven(size)}:h=${toEven(size)}:x=${toEven(x + padLeft)}:y=${toEven(y + padTop)}`);
     } else {
-        filters.push(`crop=w=${size}:h=${size}:x=${x}:y=${y}`);
+        filters.push(`crop=w=${toEven(size)}:h=${toEven(size)}:x=${toEven(x)}:y=${toEven(y)}`);
     }
 
-    filters.push(`scale=w=${outSize}:h=${outSize}`);
+    filters.push(`scale=w=${toEven(outSize)}:h=${toEven(outSize)}`);
     return filters;
 };
 
-// 🟢 NEW: need the source's actual decoded dimensions to compute padding correctly
 const getVideoDimensions = (inputPath: string): Promise<{ width: number; height: number; }> => {
     return new Promise((resolve, reject) => {
         ffmpeg.ffprobe(inputPath, (err, data) => {
@@ -165,10 +158,18 @@ const processAndUploadVideo = async (
 
         const filters = options?.crop && options.crop.size > 0
             ? buildCropOrPadFilters(options.crop, sourceW, sourceH)
-            : [`scale=-2:720`];
+            : [`scale=-2:720`]; // -2 obliga a ffmpeg a calcular un número par proporcional
+
         command = command.videoFilters(filters);
 
         command = command.videoBitrate('1500k').videoCodec('libx264').format('mp4');
+
+        // 🟢 FIX 2: Configuración estricta para evitar que Render se quede sin RAM y mate el proceso (Error 502)
+        command = command.outputOptions([
+            '-threads 1',                 // Evita sobrecargar el CPU
+            '-preset ultrafast',          // Consume muchísima menos memoria RAM 
+            '-max_muxing_queue_size 1024' // Previene el desbordamiento de búfer
+        ]);
 
         if (options?.isMuted) {
             command = command.noAudio();
