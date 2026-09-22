@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'; // 👈 Añadido useEffect
+import { useState, useEffect } from 'react';
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { PostApi, GetApi } from "@/redux/middleware/httpMethod.mid";
 import { AddCommentApi, GetCommentsApi, GetFeedApi, ToggleLikeApi } from "@/service/api.service";

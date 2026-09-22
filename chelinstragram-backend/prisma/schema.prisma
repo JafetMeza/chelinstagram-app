@@ -1,5 +1,3 @@
-// prisma/schema.prisma
-
 generator client {
   provider        = "prisma-client-js"
 }
@@ -9,58 +7,110 @@ datasource db {
 }
 
 model User {
-  id           String         @id @default(uuid())
-  username     String         @unique
+  id           String        @id @default(uuid())
+  username     String        @unique
   password     String
   displayName  String?
   bio          String?
   avatarUrl    String?
-  createdAt    DateTime       @default(now())
+  role         Role          @default(USER)
+  createdAt    DateTime      @default(now())
   
   // Relations
   posts        Post[]
+  stories      Story[]
+  storyViews   StoryView[]   // 👈 NUEVO: Historias que ha visto este usuario
   comments     Comment[]
   likes        Like[]
   participants Participant[]
   messages     Message[]
 
   // Self-referential Follow system
-  following    Follow[]       @relation("UserFollowing")
-  followers    Follow[]       @relation("UserFollowers")
-  refreshToken  String?  @unique
+  following    Follow[]      @relation("UserFollowing")
+  followers    Follow[]      @relation("UserFollowers")
+  refreshToken String?       @unique
+  
+  pushDevices  PushDevice[]
+}
+
+enum Role {
+  USER
+  ROOT
+}
+
+model PushDevice {
+  id           String   @id @default(uuid())
+  endpoint     String   @unique 
+  subscription Json     
+  createdAt    DateTime @default(now())
+  
+  userId       String
+  user         User     @relation(fields: [userId], references: [id])
 }
 
 model Follow {
   id          String   @id @default(uuid())
   createdAt   DateTime @default(now())
 
-  // The user who is following
   followerId  String
   follower    User     @relation("UserFollowing", fields: [followerId], references: [id])
 
-  // The user being followed
   followingId String
   following   User     @relation("UserFollowers", fields: [followingId], references: [id])
 
-  @@unique([followerId, followingId]) // Prevents duplicate follows
+  @@unique([followerId, followingId]) 
 }
 
 model Post {
-  id        String    @id @default(uuid())
-  imageUrl  String
-  caption   String?
-  location  String?
-  isPinned  Boolean   @default(false)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  likesCount     Int       @default(0)
-  commentCount   Int       @default(0)
+  id           String    @id @default(uuid())
+  mediaUrl     String    
+  mediaType    MediaType @default(IMAGE)
+  caption      String?
+  location     String?
+  isPinned     Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  likesCount   Int       @default(0)
+  commentCount Int       @default(0)
   
-  authorId  String
-  author    User      @relation(fields: [authorId], references: [id])
+  authorId     String
+  author       User      @relation(fields: [authorId], references: [id])
   
-  comments  Comment[]
-  likes     Like[]
+  comments     Comment[]
+  likes        Like[]
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+}
+
+model Story {
+  id          String      @id @default(uuid())
+  mediaUrl    String    
+  mediaType   MediaType   @default(IMAGE) 
+  duration    Int         @default(15) 
+  expiresAt   DateTime  
+  createdAt   DateTime    @default(now())
+  
+  authorId    String
+  author      User        @relation(fields: [authorId], references: [id])
+
+  views       StoryView[] // 👈 NUEVO: Relación hacia la tabla de vistas
+}
+
+// 🟢 NUEVO MODELO: Vistas de Historias
+model StoryView {
+  id        String   @id @default(uuid())
+  viewedAt  DateTime @default(now())
+
+  storyId   String
+  story     Story    @relation(fields: [storyId], references: [id], onDelete: Cascade) // 👈 Cascade: si se borra la historia, se borran sus vistas
+  
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([storyId, userId]) // Solo cuenta una vista por usuario por historia
 }
 
 model Comment {
@@ -109,6 +159,8 @@ model Message {
   id             String       @id @default(uuid())
   content        String
   createdAt      DateTime     @default(now())
+  
+  isRead         Boolean      @default(false)
   
   conversationId String
   conversation   Conversation @relation(fields: [conversationId], references: [id])

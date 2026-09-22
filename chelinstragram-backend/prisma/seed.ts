@@ -1,4 +1,4 @@
-import { prisma } from './database';
+import { prisma } from '../src/config/database';
 import * as bcrypt from 'bcrypt';
 
 async function main() {

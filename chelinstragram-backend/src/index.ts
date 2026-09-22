@@ -1,3 +1,4 @@
+import cors from 'cors';
 import express from 'express';
 import swaggerUi from 'swagger-ui-express';
 import swaggerJsdoc from 'swagger-jsdoc';
@@ -8,18 +9,25 @@ import multer from "multer";
 import { createPost, deletePost, getFeed, getUserPosts, updatePost } from "./controllers/feedController";
 import { addComment, getCommentsByPost, toggleLike } from "./controllers/interactionController";
 import { getProfile, getUserByUserName, searchUsers, updateProfile, toggleFollow, getFollowers, getFollowing } from "./controllers/userController";
-import cors from 'cors';
+import { createStory, getStoriesFeed, viewStory, getStoryViewers, deleteStory } from './controllers/storyController';
 import { authSchemas } from "./schemas/auth.schema";
 import { userSchemas } from "./schemas/user.schema";
 import { chatSchemas } from "./schemas/chat.schema";
 import { feedSchemas } from "./schemas/feed.schema";
 import { interactionSchemas } from "./schemas/interaction.schema";
+import { storySchemas } from './schemas/story.schema';
 import path from "path";
 import fs from 'fs';
 import cookieParser from "cookie-parser";
+import http from 'http';
+import { Server } from 'socket.io';
+import jwt from 'jsonwebtoken';
+import { handleSockets } from './sockets/socketHandler';
+import { subscribePush, unsubscribePush } from "./controllers/notificationController";
 
 const corsOptions = {
     origin: [
+        "http://localhost:4173",
         'http://localhost:3000', // Local development
         process.env.FRONTEND_URL as string // Production Vercel URL
     ].filter(Boolean),
@@ -27,6 +35,15 @@ const corsOptions = {
 };
 
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server, {
+    cors: {
+        origin: ["http://localhost:4173", "http://localhost:3000", process.env.FRONTEND_URL as string],
+        methods: ["GET", "POST"],
+        credentials: true
+    }
+});
+
 app.use(cookieParser());
 // --- CONFIGURACIÓN DE ARCHIVOS ESTÁTICOS PARA DESARROLLO ---
 const useLocalStorage = process.env.USE_LOCAL_STORAGE === 'true';
@@ -46,12 +63,16 @@ if (useLocalStorage) {
     console.log(`[Storage] ☁️ Using Cloud Storage (Supabase/External)`);
 }
 
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ limit: '10mb', extended: true }));
+app.use(express.json({ limit: '100mb' }));
+app.use(express.urlencoded({ limit: '100mb', extended: true }));
 
 // --- MULTER CONFIGURATION START ---
+// Aumentamos el límite de Multer a 100MB para videos
 const storage = multer.memoryStorage();
-const upload = multer({ storage: storage });
+const upload = multer({
+    storage: storage,
+    limits: { fileSize: 100 * 1024 * 1024 } // 100 MB
+});
 // --- MULTER CONFIGURATION END ---
 
 app.use(cors(corsOptions));
@@ -83,7 +104,8 @@ const swaggerOptions = {
                 ...authSchemas,
                 ...chatSchemas,
                 ...feedSchemas,
-                ...interactionSchemas
+                ...interactionSchemas,
+                ...storySchemas
             }
         },
     },
@@ -104,7 +126,29 @@ app.get('/api-docs-json', (req, res) => {
     res.send(swaggerSpec);
 });
 
+// 3. MIDDLEWARE DE AUTENTICACIÓN (El guardia del WebSocket)
+io.use((socket, next) => {
+    // Extraemos el token que el frontend envió en la propiedad "auth"
+    const token = socket.handshake.auth.token;
+
+    if (!token) {
+        return next(new Error("Acceso denegado: No hay token"));
+    }
+
+    try {
+        // Verificamos el JWT usando tu secreto
+        const decoded = jwt.verify(token, process.env.JWT_SECRET as string);
+
+        // Guardamos los datos del usuario dentro del socket para saber quién es
+        socket.data.user = decoded;
+        next(); // Lo dejamos pasar
+    } catch (error) {
+        return next(new Error("Acceso denegado: Token inválido o expirado"));
+    }
+});
+
 // -------------------- API ROUTES -----------------------------------
+handleSockets(io);
 // Auth Route
 app.post('/api/auth/login', login);
 app.post('/api/auth/refresh', refresh);
@@ -117,7 +161,7 @@ app.post('/api/chat/start', authenticateToken, startConversation);
 app.delete('/api/chat/conversations/:conversationId', authenticateToken, deleteConversation);
 
 // Post Routes
-app.post('/api/posts', authenticateToken, upload.single('image'), createPost);
+app.post('/api/posts', authenticateToken, upload.single('media'), createPost);
 app.get('/api/posts', authenticateToken, getFeed);
 app.patch('/api/posts/:postId', authenticateToken, updatePost);
 app.delete('/api/posts/:postId', authenticateToken, deletePost);
@@ -139,8 +183,31 @@ app.get('/api/users/:username', authenticateToken, getUserByUserName);
 app.get('/api/users/:username/followers', authenticateToken, getFollowers);
 app.get('/api/users/:username/following', authenticateToken, getFollowing);
 
-const PORT = 3001;
-app.listen(PORT, () => {
+// Notification Routes
+app.post("/api/notifications/subscribe", authenticateToken, subscribePush);
+app.delete("/api/notifications/unsubscribe", authenticateToken, unsubscribePush);
+
+// Story Routes
+app.post('/api/stories', authenticateToken, upload.single('media'), createStory);
+app.get('/api/stories', authenticateToken, getStoriesFeed);
+app.post('/api/stories/:storyId/view', authenticateToken, viewStory);
+app.get('/api/stories/:storyId/viewers', authenticateToken, getStoryViewers);
+app.delete('/api/stories/:storyId', authenticateToken, deleteStory);
+
+// 4. ESCUCHAR CONEXIONES
+io.on('connection', (socket) => {
+    // Si llegó aquí, el token es válido
+    const user = socket.data.user;
+    console.log(`🟢 Usuario conectado: ${user.username} (Socket ID: ${socket.id})`);
+
+    // Cuando el usuario cierre la app
+    socket.on('disconnect', () => {
+        console.log(`🔴 Usuario desconectado: ${user.username}`);
+    });
+});
+
+const PORT = process.env.PORT || 3001;
+server.listen(PORT, () => {
     console.log(`🚀 API: http://localhost:${PORT}`);
     console.log(`📖 Docs: http://localhost:${PORT}/api-docs`);
     console.log(`🔧 Mode: ${process.env.NODE_ENV || 'development'}`);

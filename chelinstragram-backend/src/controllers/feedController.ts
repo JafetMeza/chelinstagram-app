@@ -63,24 +63,34 @@ type PostWithAuthorAndLikes = Post & {
 */
 export const createPost = async (req: AuthRequest, res: Response) => {
     const { userId } = req.user!;
-    const { caption, location, isPinned } = req.body;
+    const { caption, location, isPinned, startTime, endTime, isMuted, cropX, cropY, cropSize } = req.body;
 
     try {
-        const file = req.file; // Populated by multer middleware
+        const file = req.file;
+        if (!file) return res.status(400).json({ error: 'No media provided' });
 
-        if (!file) {
-            return res.status(400).json({ error: 'No image provided' });
-        }
+        const mediaType = file.mimetype.startsWith('video/') ? 'VIDEO' : 'IMAGE';
 
-        const imageUrl = await uploadImage(file);
+        const videoOptions = mediaType === 'VIDEO' ? {
+            startTime: startTime !== undefined ? parseFloat(startTime) : undefined,
+            endTime: endTime !== undefined ? parseFloat(endTime) : undefined,
+            isMuted: isMuted === 'true' || isMuted === true,
+            crop: (cropX !== undefined && cropY !== undefined && cropSize !== undefined) ? {
+                x: parseInt(cropX, 10),
+                y: parseInt(cropY, 10),
+                size: parseInt(cropSize, 10),
+            } : undefined,
+        } : undefined;
+
+        const mediaUrl = await uploadImage(file, videoOptions);
 
         const post = await prisma.post.create({
             data: {
                 caption,
                 location,
-                imageUrl,
+                mediaUrl,
+                mediaType,
                 authorId: userId,
-                // Convert the incoming string/any value to a strict boolean
                 isPinned: isPinned === 'true' || isPinned === true,
             },
         });
@@ -90,7 +100,6 @@ export const createPost = async (req: AuthRequest, res: Response) => {
         res.status(500).json({ error: 'Failed to create post' });
     }
 };
-
 export const getFeed = async (req: AuthRequest, res: Response) => {
     try {
         const { userId } = req.user!;
