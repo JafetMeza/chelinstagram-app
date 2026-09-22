@@ -63,7 +63,7 @@ model Follow {
 
 model Post {
   id           String    @id @default(uuid())
-  mediaUrl     String    
+  mediaUrl     String    @map("imageUrl")    
   mediaType    MediaType @default(IMAGE)
   caption      String?
   location     String?
