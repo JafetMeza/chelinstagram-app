@@ -69,6 +69,7 @@
       "@scarf/scarf",
       "bcrypt",
       "esbuild",
+      "ffmpeg-static",
       "prisma"
     ]
   }
