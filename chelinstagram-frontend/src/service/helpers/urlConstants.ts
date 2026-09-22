@@ -15,6 +15,14 @@ export const API_ROUTES = {
         BY_USER: (username: string) => `${UrlHost}/posts/user/${username}`,
     },
 
+    // 🟢 NEW: Stories
+    STORIES: {
+        BASE: `${UrlHost}/stories`,
+        BY_ID: (storyId: string) => `${UrlHost}/stories/${storyId}`,
+        VIEW: (storyId: string) => `${UrlHost}/stories/${storyId}/view`,
+        VIEWERS: (storyId: string) => `${UrlHost}/stories/${storyId}/viewers`,
+    },
+
     // Interactions
     INTERACTIONS: {
         LIKE: `${UrlHost}/interactions/like`,

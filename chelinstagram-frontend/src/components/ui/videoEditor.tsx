@@ -30,6 +30,7 @@ const getTouchMidpoint = (touches: React.TouchList) => {
 
 const VideoEditor: React.FC<VideoEditorProps> = ({ videoSrc, onTrim }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
+    const stageRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
 
     const [duration, setDuration] = useState(0);
@@ -43,6 +44,8 @@ const VideoEditor: React.FC<VideoEditorProps> = ({ videoSrc, onTrim }) => {
     const [zoom, setZoom] = useState(1);
     const [pan, setPan] = useState({ x: 0, y: 0 });
     const [minZoom, setMinZoom] = useState(1);
+
+    const [squareSize, setSquareSize] = useState(0);
 
     // Mouse drag state
     const dragState = useRef({ dragging: false, startX: 0, startY: 0, startPan: { x: 0, y: 0 } });
@@ -66,11 +69,11 @@ const VideoEditor: React.FC<VideoEditorProps> = ({ videoSrc, onTrim }) => {
         startMid: { x: 0, y: 0 },
     });
 
-    const getContainerSize = () => containerRef.current?.clientWidth ?? 0;
+    const getContainerSize = () => squareSize;
 
     const getLayout = useCallback((z: number, p: { x: number; y: number; }) => {
         const { width: vw, height: vh } = videoDims;
-        const containerSize = getContainerSize();
+        const containerSize = squareSize; // 🟢 CHANGED
         if (!vw || !vh || !containerSize) return null;
 
         const baseScale = Math.max(containerSize / vw, containerSize / vh);
@@ -81,7 +84,7 @@ const VideoEditor: React.FC<VideoEditorProps> = ({ videoSrc, onTrim }) => {
         const top = (containerSize - displayedH) / 2 + p.y;
 
         return { vw, vh, containerSize, effectiveScale, displayedW, displayedH, left, top };
-    }, [videoDims]);
+    }, [videoDims, squareSize]);
 
     const clampPan = useCallback((nextPan: { x: number; y: number; }, z: number) => {
         const layout = getLayout(z, { x: 0, y: 0 });
@@ -296,8 +299,24 @@ const VideoEditor: React.FC<VideoEditorProps> = ({ videoSrc, onTrim }) => {
         return () => el.removeEventListener('touchmove', nativeTouchMove);
     }, []);
 
+    useEffect(() => {
+        const stageEl = stageRef.current;
+        if (!stageEl) return;
+
+        const updateSize = () => {
+            const rect = stageEl.getBoundingClientRect();
+            const size = Math.floor(Math.min(rect.width, rect.height));
+            setSquareSize(size > 0 ? size : 0);
+        };
+
+        updateSize();
+        const observer = new ResizeObserver(updateSize);
+        observer.observe(stageEl);
+        return () => observer.disconnect();
+    }, []);
+
     return (
-        <div className="flex flex-col gap-4 w-full h-full p-4 bg-zinc-900 text-white">
+        <div className="flex flex-col gap-4 w-full h-full p-4 bg-zinc-900 text-white overflow-y-auto">
             <style>{`
                 .dual-range { -webkit-appearance: none; appearance: none; background: transparent; }
                 .dual-range::-webkit-slider-thumb {
@@ -312,55 +331,57 @@ const VideoEditor: React.FC<VideoEditorProps> = ({ videoSrc, onTrim }) => {
             `}</style>
 
             <h3 className="font-bold text-center">Edit Clip</h3>
-
-            <div
-                ref={containerRef}
-                className="relative w-full aspect-square bg-black rounded-lg overflow-hidden touch-none select-none"
-                onPointerDown={handlePointerDown}
-                onPointerMove={handlePointerMove}
-                onPointerUp={handlePointerUp}
-                onPointerLeave={handlePointerUp}
-                onTouchStart={handleTouchStart}
-                onTouchMove={handleTouchMove}
-                onTouchEnd={handleTouchEnd}
-                onTouchCancel={handleTouchEnd}
-            >
-                <video
-                    ref={videoRef}
-                    src={videoSrc}
-                    className="absolute pointer-events-none"
-                    style={layout ? {
-                        width: `${layout.displayedW}px`,
-                        height: `${layout.displayedH}px`,
-                        left: `${layout.left}px`,
-                        top: `${layout.top}px`,
-                        maxWidth: 'none',   // 🟢 NEW: override Tailwind Preflight's `video { max-width: 100% }`
-                        maxHeight: 'none',  // 🟢 NEW: guard against any max-height rule too
-                    } : {}}
-                    onLoadedMetadata={handleLoadedMetadata}
-                    onTimeUpdate={handleTimeUpdate}
-                    playsInline
-                />
-
-                <div className="absolute inset-0 pointer-events-none border-2 border-white/70" />
-
-                <button
-                    onPointerDown={(e) => e.stopPropagation()}
-                    onTouchStart={(e) => e.stopPropagation()}
-                    onClick={togglePlay}
-                    className={`absolute inset-0 m-auto w-16 h-16 bg-black/50 rounded-full flex items-center justify-center transition-opacity z-10 ${isPlaying ? 'opacity-0 hover:opacity-100' : 'opacity-100'}`}
+            <div ref={stageRef} className="flex-1 min-h-0 flex items-center justify-center">
+                <div
+                    ref={containerRef}
+                    style={{ width: squareSize || undefined, height: squareSize || undefined }}
+                    className="relative bg-black rounded-lg overflow-hidden touch-none select-none"
+                    onPointerDown={handlePointerDown}
+                    onPointerMove={handlePointerMove}
+                    onPointerUp={handlePointerUp}
+                    onPointerLeave={handlePointerUp}
+                    onTouchStart={handleTouchStart}
+                    onTouchMove={handleTouchMove}
+                    onTouchEnd={handleTouchEnd}
+                    onTouchCancel={handleTouchEnd}
                 >
-                    <FontAwesomeIcon icon={isPlaying ? faPause : faPlay} className="text-2xl" />
-                </button>
+                    <video
+                        ref={videoRef}
+                        src={videoSrc}
+                        className="absolute pointer-events-none"
+                        style={layout ? {
+                            width: `${layout.displayedW}px`,
+                            height: `${layout.displayedH}px`,
+                            left: `${layout.left}px`,
+                            top: `${layout.top}px`,
+                            maxWidth: 'none',
+                            maxHeight: 'none',
+                        } : {}}
+                        onLoadedMetadata={handleLoadedMetadata}
+                        onTimeUpdate={handleTimeUpdate}
+                        playsInline
+                    />
 
-                <button
-                    onPointerDown={(e) => e.stopPropagation()}
-                    onTouchStart={(e) => e.stopPropagation()}
-                    onClick={toggleMute}
-                    className="absolute bottom-4 right-4 w-10 h-10 bg-black/60 rounded-full flex items-center justify-center backdrop-blur-sm z-10"
-                >
-                    <FontAwesomeIcon icon={isMuted ? faVolumeMute : faVolumeUp} className="text-sm" />
-                </button>
+                    <div className="absolute inset-0 pointer-events-none border-2 border-white/70" />
+
+                    <button
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onTouchStart={(e) => e.stopPropagation()}
+                        onClick={togglePlay}
+                        className={`absolute inset-0 m-auto w-16 h-16 bg-black/50 rounded-full flex items-center justify-center transition-opacity z-10 ${isPlaying ? 'opacity-0 hover:opacity-100' : 'opacity-100'}`}
+                    >
+                        <FontAwesomeIcon icon={isPlaying ? faPause : faPlay} className="text-2xl" />
+                    </button>
+
+                    <button
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onTouchStart={(e) => e.stopPropagation()}
+                        onClick={toggleMute}
+                        className="absolute bottom-4 right-4 w-10 h-10 bg-black/60 rounded-full flex items-center justify-center backdrop-blur-sm z-10"
+                    >
+                        <FontAwesomeIcon icon={isMuted ? faVolumeMute : faVolumeUp} className="text-sm" />
+                    </button>
+                </div>
             </div>
 
             <div className="flex items-center gap-3 px-2">

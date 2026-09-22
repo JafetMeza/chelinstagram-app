@@ -1,3 +1,4 @@
+import cors from 'cors';
 import express from 'express';
 import swaggerUi from 'swagger-ui-express';
 import swaggerJsdoc from 'swagger-jsdoc';
@@ -8,12 +9,13 @@ import multer from "multer";
 import { createPost, deletePost, getFeed, getUserPosts, updatePost } from "./controllers/feedController";
 import { addComment, getCommentsByPost, toggleLike } from "./controllers/interactionController";
 import { getProfile, getUserByUserName, searchUsers, updateProfile, toggleFollow, getFollowers, getFollowing } from "./controllers/userController";
-import cors from 'cors';
+import { createStory, getStoriesFeed, viewStory, getStoryViewers, deleteStory } from './controllers/storyController';
 import { authSchemas } from "./schemas/auth.schema";
 import { userSchemas } from "./schemas/user.schema";
 import { chatSchemas } from "./schemas/chat.schema";
 import { feedSchemas } from "./schemas/feed.schema";
 import { interactionSchemas } from "./schemas/interaction.schema";
+import { storySchemas } from './schemas/story.schema';
 import path from "path";
 import fs from 'fs';
 import cookieParser from "cookie-parser";
@@ -102,7 +104,8 @@ const swaggerOptions = {
                 ...authSchemas,
                 ...chatSchemas,
                 ...feedSchemas,
-                ...interactionSchemas
+                ...interactionSchemas,
+                ...storySchemas
             }
         },
     },
@@ -183,6 +186,13 @@ app.get('/api/users/:username/following', authenticateToken, getFollowing);
 // Notification Routes
 app.post("/api/notifications/subscribe", authenticateToken, subscribePush);
 app.delete("/api/notifications/unsubscribe", authenticateToken, unsubscribePush);
+
+// Story Routes
+app.post('/api/stories', authenticateToken, upload.single('media'), createStory);
+app.get('/api/stories', authenticateToken, getStoriesFeed);
+app.post('/api/stories/:storyId/view', authenticateToken, viewStory);
+app.get('/api/stories/:storyId/viewers', authenticateToken, getStoryViewers);
+app.delete('/api/stories/:storyId', authenticateToken, deleteStory);
 
 // 4. ESCUCHAR CONEXIONES
 io.on('connection', (socket) => {
