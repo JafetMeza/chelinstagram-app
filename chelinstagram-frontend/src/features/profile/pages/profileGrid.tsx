@@ -158,7 +158,7 @@ const ProfileGrid = () => {
                         <p className="text-sm mt-0.5 text-zinc-700 dark:text-zinc-300">{profile?.bio || "No bio yet."}</p>
                     </div>
                     {isOwnProfile ? (
-                        <button onClick={() => navigate(ROUTES.SETTINGS)} className="w-full py-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-lg text-xs font-bold">Edit Profile</button>
+                        <button onClick={() => navigate(ROUTES.EDIT_PROFILE)} className="w-full py-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-lg text-xs font-bold">Edit Profile</button>
                     ) : (
                         <button onClick={handleToggleFollow} className={`w-full py-1.5 rounded-lg text-xs font-bold ${profile?.isFollowing ? 'bg-zinc-100 dark:bg-zinc-800' : 'bg-blue-500 text-white'}`}>
                             {profile?.isFollowing ? 'Following' : 'Follow'}
