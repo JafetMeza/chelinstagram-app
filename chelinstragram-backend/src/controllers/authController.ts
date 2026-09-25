@@ -11,7 +11,7 @@ const generateTokens = (user: { id: string, username: string; }) => {
     const accessToken = jwt.sign(
         { userId: user.id, username: user.username },
         JWT_SECRET!,
-        { expiresIn: '15m' }
+        { expiresIn: '30d' }
     );
 
     // Añadimos un ID único al token (jti) para que siempre sea diferente

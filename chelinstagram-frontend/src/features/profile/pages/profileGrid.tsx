@@ -52,14 +52,14 @@ const ProfileGrid = () => {
     } = useInfiniteScroll({
         apiService: GetUserPostsApi,
         extraParams: extraParams,
-        limit: canSeeContent ? GRID_LIMIT : 0,
+        limit: (profile === null || canSeeContent) ? GRID_LIMIT : 0,
         initialPage: isSameUser ? persistedPage : 1,
         initialPosts: displayPosts,
         initialHasMore: isSameUser ? persistedHasMore : true
     });
 
     useEffect(() => {
-        if (hookPosts.length > 0 && username) {
+        if (username) {
             dispatch(setProfilePosts({
                 posts: hookPosts,
                 username: username,
@@ -172,7 +172,7 @@ const ProfileGrid = () => {
                 {canSeeContent ? (
                     <>
                         <div className="grid grid-cols-3 gap-0.5 p-0.5">
-                            {displayPosts.map((post, index) => {
+                            {hookPosts.map((post, index) => {
                                 // 🟢 CAMBIO: Usamos mediaUrl en vez de imageUrl
                                 const mediaUrl = post.mediaUrl?.startsWith('http') ? post.mediaUrl : `${Url}${post.mediaUrl}`;
 
