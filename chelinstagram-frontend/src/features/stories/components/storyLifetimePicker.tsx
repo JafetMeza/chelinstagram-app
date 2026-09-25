@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faXmark, faClock } from '@fortawesome/free-solid-svg-icons';
+import { faXmark, faClock, faFont } from '@fortawesome/free-solid-svg-icons';
+import TextOverlayLayer from './textOverlayLayer';
+import { TextOverlay } from '../lib/types';
 
 const MIN_MINUTES = 5;
 const MAX_MINUTES = 3 * 24 * 60;
@@ -25,13 +27,23 @@ interface StoryLifetimePickerProps {
     previewUrl: string;
     mediaType: 'image' | 'video';
     uploading: boolean;
-    queuePosition?: number;   // 🟢 NEW: 1-based index in the current batch
-    queueTotal?: number;      // 🟢 NEW: total items in the current batch
+    textOverlays?: TextOverlay[];
+    onEditText?: () => void;
+    queuePosition?: number;
+    queueTotal?: number;
     onConfirm: (lifetimeMinutes: number) => void;
     onCancel: () => void;
 }
 
-const StoryLifetimePicker = ({ previewUrl, mediaType, uploading, onConfirm, onCancel }: StoryLifetimePickerProps) => {
+const StoryLifetimePicker = ({
+    previewUrl,
+    mediaType,
+    uploading,
+    textOverlays = [],
+    onEditText,
+    onConfirm,
+    onCancel,
+}: StoryLifetimePickerProps) => {
     const [unit, setUnit] = useState<Unit>('hours');
     const [value, setValue] = useState<number>(24);
 
@@ -64,16 +76,23 @@ const StoryLifetimePicker = ({ previewUrl, mediaType, uploading, onConfirm, onCa
                 <h1 className="flex-1 text-center font-bold">
                     Story Duration
                 </h1>
-                <div className="w-5" />
+                {onEditText ? (
+                    <button onClick={onEditText} disabled={uploading} aria-label="Edit text">
+                        <FontAwesomeIcon icon={faFont} className="text-sm text-blue-400" />
+                    </button>
+                ) : (
+                    <div className="w-5" />
+                )}
             </div>
 
             <div className="flex-1 flex flex-col items-center overflow-y-auto p-4 gap-6">
-                <div className="w-40 aspect-square rounded-xl overflow-hidden bg-zinc-900 flex items-center justify-center">
+                <div className="relative w-40 aspect-square rounded-xl overflow-hidden bg-zinc-900 flex items-center justify-center @container">
                     {mediaType === 'video' ? (
                         <video src={previewUrl} className="w-full h-full object-cover" muted playsInline autoPlay loop />
                     ) : (
                         <img src={previewUrl} className="w-full h-full object-cover" alt="Story preview" />
                     )}
+                    {textOverlays.length > 0 && <TextOverlayLayer overlays={textOverlays} />}
                 </div>
 
                 <div className="w-full max-w-sm flex flex-col gap-3">

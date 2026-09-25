@@ -29,7 +29,7 @@ export default defineConfig({
       manifest: {
         id: '/',
         name: 'Chelinstagram',
-        short_name: 'Chelfies',
+        short_name: 'Chelinstagram',
         description: 'Nuestra red social privada',
         theme_color: '#000000',
         background_color: '#ffffff',

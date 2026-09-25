@@ -56,6 +56,27 @@ export const handleSockets = (io: Server) => {
             }
         });
 
+        socket.on('typing', (data: { conversationId: string, receiverId: string; }) => {
+            const receiverSocketId = onlineUsers.get(data.receiverId);
+            if (receiverSocketId) {
+                io.to(receiverSocketId).emit('user_typing', {
+                    conversationId: data.conversationId,
+                    userId: currentUserId // El ID de quien está escribiendo
+                });
+            }
+        });
+
+        // 🟢 NUEVO: Escuchar cuando alguien deja de escribir
+        socket.on('stop_typing', (data: { conversationId: string, receiverId: string; }) => {
+            const receiverSocketId = onlineUsers.get(data.receiverId);
+            if (receiverSocketId) {
+                io.to(receiverSocketId).emit('user_stop_typing', {
+                    conversationId: data.conversationId,
+                    userId: currentUserId
+                });
+            }
+        });
+
         socket.on('disconnect', () => {
             console.log(`🔴 [Socket] ${user.username} se ha desconectado.`);
             onlineUsers.delete(currentUserId);
