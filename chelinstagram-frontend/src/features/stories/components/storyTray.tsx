@@ -8,10 +8,13 @@ import { getAvatarSrc, compressAndUpload } from "@/helpers/imageUtils";
 import { processToSquare } from "@/features/createChelfies/lib/imageProcessing";
 import VideoEditor, { CropData } from '@/components/ui/videoEditor';
 import StoryLifetimePicker from './storyLifetimePicker';
+import StoryTextEditor from './storyTextEditor';
 import StoryViewer from './storyViewer';
+import { TextOverlay } from '../lib/types';
+import { bakeTextOverlaysOntoImage } from '../lib/textOverlayUtils';
 import type { StoryGroup } from "@/types/schema";
 
-type CreateStep = 'idle' | 'trimming' | 'lifetime';
+type CreateStep = 'idle' | 'trimming' | 'texting' | 'lifetime';
 
 interface VideoMeta {
     startTime: number;
@@ -35,6 +38,7 @@ const StoryTray = () => {
     const [pendingPreview, setPendingPreview] = useState<string | null>(null);
     const [pendingType, setPendingType] = useState<'image' | 'video' | null>(null);
     const [videoMeta, setVideoMeta] = useState<VideoMeta | null>(null);
+    const [textOverlays, setTextOverlays] = useState<TextOverlay[]>([]);
     const [uploading, setUploading] = useState(false);
 
     useEffect(() => {
@@ -57,6 +61,7 @@ const StoryTray = () => {
         setPendingPreview(null);
         setPendingType(null);
         setVideoMeta(null);
+        setTextOverlays([]);
         setUploading(false);
     };
 
@@ -81,6 +86,7 @@ const StoryTray = () => {
 
         const isVideo = file.type.startsWith('video/');
         setPendingType(isVideo ? 'video' : 'image');
+        setTextOverlays([]);
 
         if (isVideo) {
             setPendingFile(file);
@@ -97,7 +103,7 @@ const StoryTray = () => {
 
             setPendingFile(finalFile);
             setPendingPreview(URL.createObjectURL(finalFile));
-            setCreateStep('lifetime');
+            setCreateStep('texting'); // 🟢 go pick text before duration
         } catch (err) {
             console.error('Error processing story photo', err);
             alert('Something went wrong preparing your story.');
@@ -106,14 +112,33 @@ const StoryTray = () => {
 
     const handleVideoTrimmed = (startTime: number, endTime: number, isMuted: boolean, crop: CropData) => {
         setVideoMeta({ startTime, endTime, isMuted, crop });
+        setCreateStep('texting'); // 🟢 go pick text before duration
+    };
+
+    // 🟢 NEW: text step confirmed, move on to picking the story lifetime
+    const handleTextConfirm = (overlays: TextOverlay[]) => {
+        setTextOverlays(overlays);
         setCreateStep('lifetime');
     };
 
-    const handleLifetimeConfirm = (lifetimeMinutes: number) => {
+    const handleLifetimeConfirm = async (lifetimeMinutes: number) => {
         if (!pendingFile) return;
 
+        setUploading(true);
+
+        // 🟢 Bake text onto the image right before upload — keeps the base
+        // image untouched so the user can go back and re-edit text freely.
+        let fileToUpload = pendingFile;
+        if (pendingType === 'image' && textOverlays.length > 0) {
+            try {
+                fileToUpload = await bakeTextOverlaysOntoImage(pendingFile, textOverlays);
+            } catch (err) {
+                console.error('Failed to render text onto story image', err);
+            }
+        }
+
         const formData = new FormData();
-        formData.append('media', pendingFile);
+        formData.append('media', fileToUpload);
         formData.append('lifetimeMinutes', lifetimeMinutes.toString());
 
         if (pendingType === 'video' && videoMeta) {
@@ -125,14 +150,18 @@ const StoryTray = () => {
             formData.append('cropSize', videoMeta.crop.size.toString());
         }
 
-        setUploading(true);
+        // 🟢 Video text can't be burned in client-side — send it as metadata
+        // for the player/backend to composite on playback.
+        if (pendingType === 'video' && textOverlays.length > 0) {
+            formData.append('textOverlays', JSON.stringify(textOverlays));
+        }
+
         dispatch(PostApi([formData], CreateStoryApi));
     };
 
     return (
         <>
             <div className="flex gap-4 overflow-x-auto pb-3 px-3 sm:px-0 [&::-webkit-scrollbar]:hidden">
-                {/* 🟢 Own story circle: two independent tap targets, not one combined onClick */}
                 <div className="flex flex-col items-center gap-1 shrink-0">
                     <div className="relative w-16 h-16">
                         <button
@@ -153,7 +182,6 @@ const StoryTray = () => {
                             </div>
                         </button>
 
-                        {/* 🟢 Always clickable — adding a new story no longer depends on whether one already exists */}
                         <button
                             type="button"
                             onClick={() => fileInputRef.current?.click()}
@@ -215,11 +243,23 @@ const StoryTray = () => {
                 </div>
             )}
 
+            {createStep === 'texting' && pendingPreview && pendingType && (
+                <StoryTextEditor
+                    previewUrl={pendingPreview}
+                    mediaType={pendingType}
+                    initialOverlays={textOverlays}
+                    onConfirm={handleTextConfirm}
+                    onCancel={resetCreationState}
+                />
+            )}
+
             {createStep === 'lifetime' && pendingPreview && pendingType && (
                 <StoryLifetimePicker
                     previewUrl={pendingPreview}
                     mediaType={pendingType}
                     uploading={uploading}
+                    textOverlays={textOverlays}
+                    onEditText={() => setCreateStep('texting')}
                     onConfirm={handleLifetimeConfirm}
                     onCancel={resetCreationState}
                 />
