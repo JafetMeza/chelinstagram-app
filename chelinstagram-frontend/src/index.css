@@ -11,6 +11,23 @@
   }
 }
 
+/* Fingerkiss: corazones que flotan desde el punto de contacto */
+@keyframes fingerkissHeart {
+  0% {
+    transform: translate(-50%, -50%) scale(0.6);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(calc(-50% + var(--fk-dx, 0px)), calc(-50% - 140px)) scale(1.25);
+    opacity: 0;
+  }
+}
+
+.fingerkiss-heart {
+  animation: fingerkissHeart 1.2s ease-out forwards;
+  will-change: transform, opacity;
+}
+
 .animate-slide-up {
   animation: slideUp 0.5s cubic-bezier(0.4, 0, 0.2, 1);
   will-change: transform;

@@ -13,6 +13,7 @@ import { formatChatDate } from "../lib/chatHelper";
 import { ReactionType, toggleReaction } from "../lib/reactions";
 import MessageBubble, { LocalMessage } from "../components/messageBubble";
 import MessageActionsSheet from "../components/messageActionsSheet";
+import FingerprintOval from "@/features/fingerkiss/components/fingerprintOval";
 
 const PAGE_SIZE = 30;
 const NEAR_BOTTOM_PX = 120;
@@ -464,13 +465,23 @@ const ChatRoom = () => {
                         </div>
                     </div>
                 </div>
-                <button
-                    onClick={() => partner?.username && navigate(ROUTES.PROFILE(partner.username))}
-                    className="p-2 text-zinc-400 hover:text-black dark:hover:text-white transition-colors active:opacity-50"
-                    title="View Profile"
-                >
-                    <FontAwesomeIcon icon={faInfoCircle} className="text-xl" />
-                </button>
+                <div className="flex items-center">
+                    <button
+                        onClick={() => conversationId && navigate(ROUTES.FINGERKISS(conversationId), { state: { partner, invite: true } })}
+                        className="p-2 text-pink-500 hover:text-pink-400 transition-colors active:opacity-50"
+                        title="Fingerkiss"
+                        aria-label="Fingerkiss"
+                    >
+                        <FingerprintOval className="w-[18px] h-6" />
+                    </button>
+                    <button
+                        onClick={() => partner?.username && navigate(ROUTES.PROFILE(partner.username))}
+                        className="p-2 text-zinc-400 hover:text-black dark:hover:text-white transition-colors active:opacity-50"
+                        title="View Profile"
+                    >
+                        <FontAwesomeIcon icon={faInfoCircle} className="text-xl" />
+                    </button>
+                </div>
             </div>
 
             <div ref={containerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto p-4 space-y-4">

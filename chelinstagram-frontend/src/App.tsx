@@ -17,6 +17,8 @@ import { PwaUpdatePrompt } from "./components/ui/pwaUpdatePromt";
 import { SocketProvider } from "./components/context/socketContext";
 import { PushNotificationPrompt } from "./components/ui/pushNotificationPromt";
 import SettingsPage from "./pages/settingsPage";
+import FingerkissRoomPage from "./pages/fingerkissRoomPage";
+import FingerkissInviteToast from "./features/fingerkiss/components/fingerkissInviteToast";
 
 function App() {
 
@@ -27,6 +29,7 @@ function App() {
         <PushNotificationPrompt />
         <AuthenticationProvider>
           <SocketProvider>
+            <FingerkissInviteToast />
             <Routes>
               <Route path={ROUTES.LOGIN} element={<LoginPage />} />
               <Route element={<Layout />}>
@@ -39,6 +42,7 @@ function App() {
                 <Route path={ROUTES.FOLLOWERS_PATH} element={<FollowersPage />} />
                 <Route path={ROUTES.CHAT_LIST} element={<ChatListPage />} />
                 <Route path={ROUTES.CHAT_PATH} element={<ChatRoomPage />} />
+                <Route path={ROUTES.FINGERKISS_PATH} element={<FingerkissRoomPage />} />
                 <Route path={ROUTES.SETTINGS} element={<SettingsPage />} />
               </Route>
             </Routes>
