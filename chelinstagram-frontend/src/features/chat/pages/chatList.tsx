@@ -81,9 +81,14 @@ const ChatList = () => {
         socket.on('user_typing', handleUserTyping);
         socket.on('user_stop_typing', handleUserStopTyping);
 
+        const timeouts = typingTimeouts.current;
+
         return () => {
             socket.off('receive_message', handleReceiveMessage);
             socket.off('message_sent', handleMessageSent);
+            socket.off('user_typing', handleUserTyping);
+            socket.off('user_stop_typing', handleUserStopTyping);
+            Object.values(timeouts).forEach(clearTimeout);
         };
     }, [socket]);
 
@@ -111,7 +116,7 @@ const ChatList = () => {
 
             if (apiMethod === StartConversationApi.name) {
                 const newChat = data as Conversation;
-                const partnerUser = newChat.participants?.find(p => p.user?.id !== currentUser?.id)?.user;
+                const partnerUser = newChat.participants?.find(p => p.userId !== currentUser?.id)?.user;
                 navigate(`/chat/${newChat.id}`, { state: { partner: partnerUser } });
             }
 
