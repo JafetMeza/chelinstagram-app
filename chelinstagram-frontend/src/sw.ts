@@ -31,8 +31,19 @@ self.addEventListener('push', (event: PushEvent) => {
 self.addEventListener('notificationclick', (event: NotificationEvent) => {
     event.notification.close();
 
-    // Aseguramos que use self.clients para que TypeScript no se queje
-    event.waitUntil(
-        self.clients.openWindow(event.notification.data.url)
-    );
+    const targetUrl = new URL(event.notification.data?.url || '/', self.location.origin).href;
+
+    // Si la PWA ya está abierta la enfocamos y navegamos; si no, abrimos una ventana nueva
+    event.waitUntil((async () => {
+        const windowClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+        const client = windowClients.find(c => new URL(c.url).origin === self.location.origin);
+
+        if (client) {
+            await client.focus();
+            if (client.url !== targetUrl) await client.navigate(targetUrl);
+            return;
+        }
+
+        await self.clients.openWindow(targetUrl);
+    })());
 });
