@@ -20,6 +20,7 @@ export const userSchemas = {
             bio: { type: 'string', nullable: true },
             avatarUrl: { type: 'string', nullable: true },
             isFollowing: { type: 'boolean' },
+            readReceiptsEnabled: { type: 'boolean', description: 'Only returned for the current user profile' },
             _count: {
                 type: 'object',
                 properties: {
@@ -50,6 +51,14 @@ export const userSchemas = {
             username: { type: 'string' },
             displayName: { type: 'string', nullable: true },
             avatarUrl: { type: 'string', nullable: true }
+        }
+    },
+
+    UserSettings: {
+        type: 'object',
+        required: ['readReceiptsEnabled'],
+        properties: {
+            readReceiptsEnabled: { type: 'boolean', description: 'Read receipts ("Visto"), disabled by default' }
         }
     },
 
