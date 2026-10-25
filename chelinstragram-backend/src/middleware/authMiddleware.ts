@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt, { TokenExpiredError } from 'jsonwebtoken';
+import { getJwtSecret } from '../config/auth';
 
 /**
  * @openapi
@@ -20,7 +21,6 @@ export interface AuthRequest extends Request {
 
 export const authenticateToken = (req: AuthRequest, res: Response, next: NextFunction) => {
     const authHeader = req.headers['authorization'];
-    const JWT_SECRET = process.env.JWT_SECRET || "";
 
     if (!authHeader) {
         return res.status(401).json({ error: 'No token provided' });
@@ -34,7 +34,7 @@ export const authenticateToken = (req: AuthRequest, res: Response, next: NextFun
     const token = parts[1];
 
     try {
-        const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; username: string; };
+        const decoded = jwt.verify(token, getJwtSecret()) as { userId: string; username: string; };
         req.user = decoded;
         next();
     } catch (error) {

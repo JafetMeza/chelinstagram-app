@@ -24,6 +24,9 @@ import { Server } from 'socket.io';
 import jwt from 'jsonwebtoken';
 import { handleSockets } from './sockets/socketHandler';
 import { subscribePush, unsubscribePush } from "./controllers/notificationController";
+import { assertAuthConfig, getJwtSecret } from './config/auth';
+
+assertAuthConfig();
 
 const corsOptions = {
     origin: [
@@ -137,7 +140,7 @@ io.use((socket, next) => {
 
     try {
         // Verificamos el JWT usando tu secreto
-        const decoded = jwt.verify(token, process.env.JWT_SECRET as string);
+        const decoded = jwt.verify(token, getJwtSecret());
 
         // Guardamos los datos del usuario dentro del socket para saber quién es
         socket.data.user = decoded;
