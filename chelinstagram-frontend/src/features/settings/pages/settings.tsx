@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { useAppSelector } from "@/redux/hooks";
 import { Url } from "@/service/helpers/urlConstants";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faChevronLeft, faBell, faTriangleExclamation, faRotateRight } from '@fortawesome/free-solid-svg-icons';
+import { faChevronLeft, faBell, faTriangleExclamation, faRotateRight, faCheckDouble } from '@fortawesome/free-solid-svg-icons';
+import { GetMyProfileApi, UpdateSettingsApi } from "@/service/api.service";
+import { ResponseStatus } from "@/service/helpers/serviceConstants";
 
 // Función utilitaria para la llave VAPID
 const urlBase64ToUint8Array = (base64String: string) => {
@@ -63,6 +65,34 @@ const Settings = () => {
         // eslint-disable-next-line react-hooks/set-state-in-effect
         checkSubscriptionStatus();
     }, [checkSubscriptionStatus]);
+
+    // --- PRIVACIDAD: "Visto" (desactivado por defecto) ---
+    const [readReceiptsEnabled, setReadReceiptsEnabled] = useState(false);
+    const [isReadReceiptsLoading, setIsReadReceiptsLoading] = useState(true);
+
+    useEffect(() => {
+        const loadPrivacySettings = async () => {
+            const result = await GetMyProfileApi();
+            if (result.status === ResponseStatus.OK) {
+                setReadReceiptsEnabled(!!result.data?.readReceiptsEnabled);
+            }
+            setIsReadReceiptsLoading(false);
+        };
+        loadPrivacySettings();
+    }, []);
+
+    const toggleReadReceipts = async () => {
+        const nextValue = !readReceiptsEnabled;
+        setIsReadReceiptsLoading(true);
+        setReadReceiptsEnabled(nextValue);
+
+        const result = await UpdateSettingsApi({ readReceiptsEnabled: nextValue });
+        if (result.status !== ResponseStatus.OK) {
+            console.error("Error guardando la preferencia de visto:", result.error);
+            setReadReceiptsEnabled(!nextValue);
+        }
+        setIsReadReceiptsLoading(false);
+    };
 
     const toggleNotifications = async () => {
         try {
@@ -178,6 +208,36 @@ const Settings = () => {
                                 </div>
                             </div>
                         )}
+                    </div>
+                </section>
+
+                <section>
+                    <h2 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-3 ml-2">Privacidad</h2>
+
+                    <div className="bg-white dark:bg-zinc-900 rounded-2xl overflow-hidden border dark:border-zinc-800">
+                        <div className="p-4 flex items-center justify-between gap-4">
+                            <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 shrink-0 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-500">
+                                    <FontAwesomeIcon icon={faCheckDouble} />
+                                </div>
+                                <div className="flex flex-col">
+                                    <span className="font-bold text-sm">Confirmación de lectura</span>
+                                    <span className="text-xs text-zinc-500">
+                                        Muestra "Visto" en el chat. Si lo desactivas, tampoco verás cuándo leen tus mensajes.
+                                    </span>
+                                </div>
+                            </div>
+
+                            <button
+                                onClick={toggleReadReceipts}
+                                disabled={isReadReceiptsLoading}
+                                className={`relative shrink-0 w-12 h-6 rounded-full transition-colors duration-300 ease-in-out ${readReceiptsEnabled ? 'bg-green-500' : 'bg-zinc-300 dark:bg-zinc-700'
+                                    } ${isReadReceiptsLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            >
+                                <div className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform duration-300 ease-in-out ${readReceiptsEnabled ? 'transform translate-x-6' : ''
+                                    }`} />
+                            </button>
+                        </div>
                     </div>
                 </section>
             </div>
