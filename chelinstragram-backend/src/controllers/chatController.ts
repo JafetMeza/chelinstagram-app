@@ -2,6 +2,15 @@ import { Response } from 'express';
 import { prisma } from '../config/database';
 import { AuthRequest } from '../middleware/authMiddleware';
 
+// Shared by REST controllers and socket handlers to guard conversation access
+export const isConversationParticipant = async (conversationId: string, userId: string) => {
+    if (!conversationId || !userId) return false;
+    const participant = await prisma.participant.findUnique({
+        where: { conversationId_userId: { conversationId, userId } }
+    });
+    return !!participant;
+};
+
 /**
  * @openapi
  * /api/chat/conversations/{conversationId}:
@@ -39,6 +48,10 @@ export const getMessages = async (req: AuthRequest, res: Response) => {
     const currentUserId = req.user?.userId;
 
     try {
+        if (!currentUserId || !(await isConversationParticipant(conversationId as string, currentUserId))) {
+            return res.status(403).json({ error: 'You are not a participant of this conversation' });
+        }
+
         const messages = await prisma.message.findMany({
             where: { conversationId: conversationId as string },
             include: {
@@ -161,7 +174,15 @@ export const sendMessage = async (req: AuthRequest, res: Response) => {
     const { userId } = req.user!;
     const { conversationId, content } = req.body;
 
+    if (typeof content !== 'string' || !content.trim()) {
+        return res.status(400).json({ error: 'Message content is required' });
+    }
+
     try {
+        if (!(await isConversationParticipant(conversationId, userId))) {
+            return res.status(403).json({ error: 'You are not a participant of this conversation' });
+        }
+
         // 1. Create the message and update the Conversation's updatedAt in one transaction
         const [newMessage] = await prisma.$transaction([
             prisma.message.create({
@@ -225,7 +246,14 @@ export const startConversation = async (req: AuthRequest, res: Response) => {
     const { userId } = req.user!;
     const { recipientId } = req.body;
 
+    if (typeof recipientId !== 'string' || !recipientId || recipientId === userId) {
+        return res.status(400).json({ error: 'A valid recipient is required' });
+    }
+
     try {
+        const recipient = await prisma.user.findUnique({ where: { id: recipientId }, select: { id: true } });
+        if (!recipient) return res.status(404).json({ error: 'Recipient not found' });
+
         // Find if a conversation already exists between these two
         let conversation = await prisma.conversation.findFirst({
             where: {
@@ -236,7 +264,7 @@ export const startConversation = async (req: AuthRequest, res: Response) => {
             },
             include: {
                 participants: {
-                    include: { user: { select: { username: true, displayName: true, avatarUrl: true } } }
+                    include: { user: { select: { id: true, username: true, displayName: true, avatarUrl: true } } }
                 },
                 messages: { take: 1, orderBy: { createdAt: 'desc' } }
             }
@@ -255,7 +283,7 @@ export const startConversation = async (req: AuthRequest, res: Response) => {
                 },
                 include: {
                     participants: {
-                        include: { user: { select: { username: true, displayName: true, avatarUrl: true } } }
+                        include: { user: { select: { id: true, username: true, displayName: true, avatarUrl: true } } }
                     },
                     messages: true
                 }
@@ -264,6 +292,7 @@ export const startConversation = async (req: AuthRequest, res: Response) => {
 
         res.status(200).json(conversation);
     } catch (error) {
+        console.error('Start conversation error:', error);
         res.status(500).json({ error: 'Failed to start conversation' });
     }
 };

@@ -79,6 +79,14 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
                 bio,
                 // Only spread the avatarUrl if it was actually uploaded
                 ...(avatarUrl && { avatarUrl })
+            },
+            // Never expose password hash or refresh token
+            select: {
+                id: true,
+                username: true,
+                displayName: true,
+                bio: true,
+                avatarUrl: true
             }
         });
 

@@ -2,8 +2,8 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { GetApi } from "@/redux/middleware/httpMethod.mid";
-import { GetMessagesApi } from "@/service/api.service";
-import { Message } from "@/types/schema";
+import { GetConversationsApi, GetMessagesApi } from "@/service/api.service";
+import { Conversation, Message } from "@/types/schema";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronLeft, faPaperPlane, faInfoCircle, faExclamationCircle } from '@fortawesome/free-solid-svg-icons';
 import { getAvatarSrc } from "@/helpers/imageUtils";
@@ -64,10 +64,25 @@ const ChatRoom = () => {
                         setPartner(otherMessage.sender);
                     };
                     onSetPartner();
+                } else {
+                    // El otro usuario aún no ha escrito (URL directa, recarga o push):
+                    // lo obtenemos de los participantes de la conversación
+                    dispatch(GetApi([], GetConversationsApi));
                 }
             }
         }
-    }, [ok, data, apiMethod, currentUser?.id, partner]);
+
+        if (ok && apiMethod === GetConversationsApi.name && !partner) {
+            const conversation = (data as Conversation[]).find(c => c.id === conversationId);
+            const partnerUser = conversation?.participants?.find(p => p.userId !== currentUser?.id)?.user;
+            if (partnerUser) {
+                const onSetPartner = () => {
+                    setPartner(partnerUser);
+                };
+                onSetPartner();
+            }
+        }
+    }, [ok, data, apiMethod, currentUser?.id, partner, conversationId, dispatch]);
 
     useEffect(() => {
         if (!socket || !conversationId) return;
