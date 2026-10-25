@@ -116,9 +116,9 @@ const swaggerOptions = {
     apis: ['./src/controllers/*.ts'],
 };
 
+// No registramos el body: puede contener contraseñas, tokens o suscripciones push.
 app.use((req, res, next) => {
     console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
-    if (req.method === 'POST') console.log('Body Payload:', req.body);
     next();
 });
 
