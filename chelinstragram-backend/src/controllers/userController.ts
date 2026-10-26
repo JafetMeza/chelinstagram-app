@@ -46,6 +46,7 @@ export const getProfile = async (req: AuthRequest, res: Response) => {
                 displayName: true,
                 bio: true,
                 avatarUrl: true,
+                readReceiptsEnabled: true,
                 _count: {
                     select: { followers: true, following: true, posts: true }
                 }
@@ -54,6 +55,52 @@ export const getProfile = async (req: AuthRequest, res: Response) => {
         res.json(user);
     } catch (error) {
         res.status(500).json({ error: 'Failed to fetch profile' });
+    }
+};
+
+/**
+ * @openapi
+ * /api/users/settings:
+ *  patch:
+ *    summary: Update the current user's preferences
+ *    tags:
+ *      - Users
+ *    security:
+ *      - bearerAuth: []
+ *    requestBody:
+ *      required: true
+ *      content:
+ *        application/json:
+ *          schema:
+ *            $ref: '#/components/schemas/UserSettings'
+ *    responses:
+ *      '200':
+ *        description: Updated preferences
+ *        content:
+ *          application/json:
+ *            schema:
+ *              $ref: '#/components/schemas/UserSettings'
+ *      '400':
+ *        description: Invalid settings
+ */
+export const updateSettings = async (req: AuthRequest, res: Response) => {
+    const { userId } = req.user!;
+    const { readReceiptsEnabled } = req.body ?? {};
+
+    if (typeof readReceiptsEnabled !== 'boolean') {
+        return res.status(400).json({ error: 'readReceiptsEnabled must be a boolean' });
+    }
+
+    try {
+        const settings = await prisma.user.update({
+            where: { id: userId },
+            data: { readReceiptsEnabled },
+            select: { readReceiptsEnabled: true }
+        });
+        res.json(settings);
+    } catch (error) {
+        console.error('Update Settings Error:', error);
+        res.status(500).json({ error: 'Failed to update settings' });
     }
 };
 
@@ -79,6 +126,14 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
                 bio,
                 // Only spread the avatarUrl if it was actually uploaded
                 ...(avatarUrl && { avatarUrl })
+            },
+            // Never expose password hash or refresh token
+            select: {
+                id: true,
+                username: true,
+                displayName: true,
+                bio: true,
+                avatarUrl: true
             }
         });
 

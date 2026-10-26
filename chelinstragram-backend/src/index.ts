@@ -8,7 +8,7 @@ import { deleteConversation, getConversation, getMessages, sendMessage, startCon
 import multer from "multer";
 import { createPost, deletePost, getFeed, getUserPosts, updatePost } from "./controllers/feedController";
 import { addComment, getCommentsByPost, toggleLike } from "./controllers/interactionController";
-import { getProfile, getUserByUserName, searchUsers, updateProfile, toggleFollow, getFollowers, getFollowing } from "./controllers/userController";
+import { getProfile, getUserByUserName, searchUsers, updateProfile, toggleFollow, getFollowers, getFollowing, updateSettings } from "./controllers/userController";
 import { createStory, getStoriesFeed, viewStory, getStoryViewers, deleteStory } from './controllers/storyController';
 import { authSchemas } from "./schemas/auth.schema";
 import { userSchemas } from "./schemas/user.schema";
@@ -24,6 +24,9 @@ import { Server } from 'socket.io';
 import jwt from 'jsonwebtoken';
 import { handleSockets } from './sockets/socketHandler';
 import { subscribePush, unsubscribePush } from "./controllers/notificationController";
+import { assertAuthConfig, getJwtSecret } from './config/auth';
+
+assertAuthConfig();
 
 const corsOptions = {
     origin: [
@@ -113,9 +116,9 @@ const swaggerOptions = {
     apis: ['./src/controllers/*.ts'],
 };
 
+// No registramos el body: puede contener contraseñas, tokens o suscripciones push.
 app.use((req, res, next) => {
     console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
-    if (req.method === 'POST') console.log('Body Payload:', req.body);
     next();
 });
 
@@ -137,7 +140,7 @@ io.use((socket, next) => {
 
     try {
         // Verificamos el JWT usando tu secreto
-        const decoded = jwt.verify(token, process.env.JWT_SECRET as string);
+        const decoded = jwt.verify(token, getJwtSecret());
 
         // Guardamos los datos del usuario dentro del socket para saber quién es
         socket.data.user = decoded;
@@ -175,6 +178,7 @@ app.get('/api/interactions/comments/:postId', authenticateToken, getCommentsByPo
 // Profile Routes
 app.get('/api/users/profile', authenticateToken, getProfile);
 app.patch('/api/users/profile', authenticateToken, upload.single('avatar'), updateProfile);
+app.patch('/api/users/settings', authenticateToken, updateSettings);
 app.post('/api/users/follow', authenticateToken, toggleFollow);
 
 // User Search Route

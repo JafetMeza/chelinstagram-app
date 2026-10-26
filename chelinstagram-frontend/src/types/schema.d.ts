@@ -25,6 +25,8 @@ export interface UserProfile {
   bio?: string | null;
   avatarUrl?: string | null;
   isFollowing?: boolean;
+  /** Only returned for the current user profile */
+  readReceiptsEnabled?: boolean;
   _count?: {
     followers?: number;
     following?: number;
@@ -84,8 +86,40 @@ export interface Message {
   createdAt?: string;
   senderId?: string;
   conversationId?: string;
-  senderId?: string;
   sender?: User;
+  /** @format date-time */
+  editedAt?: string | null;
+  /**
+   * If set, content is empty
+   * @format date-time
+   */
+  deletedAt?: string | null;
+  /** Only present when both participants enabled read receipts */
+  isRead?: boolean;
+  reactions?: MessageReaction[];
+}
+
+export interface MessageReaction {
+  userId?: string;
+  type?: "heart" | "laugh" | "sad" | "angry" | "surprise";
+}
+
+export interface MessagesPage {
+  data?: Message[];
+  meta?: {
+    /** Cursor sent in the request */
+    cursor?: string | null;
+    /** Cursor to load older messages */
+    nextCursor?: string | null;
+    hasMore?: boolean;
+    /** True when both participants enabled read receipts */
+    readReceipts?: boolean;
+  };
+}
+
+export interface UserSettings {
+  /** Read receipts ("Visto"), disabled by default */
+  readReceiptsEnabled: boolean;
 }
 
 export interface Conversation {

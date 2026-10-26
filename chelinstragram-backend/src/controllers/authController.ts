@@ -3,14 +3,12 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { prisma } from "../config/database";
-
-const JWT_SECRET = process.env.JWT_SECRET || "fallback_secret";
-const REFRESH_SECRET = process.env.REFRESH_SECRET || "fallback_refresh_secret";
+import { getJwtSecret, getRefreshSecret } from "../config/auth";
 
 const generateTokens = (user: { id: string, username: string; }) => {
     const accessToken = jwt.sign(
         { userId: user.id, username: user.username },
-        JWT_SECRET!,
+        getJwtSecret(),
         { expiresIn: '30d' }
     );
 
@@ -20,7 +18,7 @@ const generateTokens = (user: { id: string, username: string; }) => {
             userId: user.id,
             version: crypto.randomBytes(16).toString('hex') // 👈 Esto garantiza un token único
         },
-        REFRESH_SECRET!,
+        getRefreshSecret(),
         { expiresIn: '30d' }
     );
 
@@ -122,7 +120,7 @@ export const refresh = async (req: Request, res: Response) => {
     if (!refreshToken) return res.status(401).json({ error: "No refresh token" });
 
     try {
-        const payload = jwt.verify(refreshToken, REFRESH_SECRET) as { userId: string; };
+        const payload = jwt.verify(refreshToken, getRefreshSecret()) as { userId: string; };
 
         // Buscamos al usuario para obtener sus datos actualizados
         const user = await prisma.user.findUnique({ where: { id: payload.userId } });

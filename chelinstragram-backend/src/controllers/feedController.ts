@@ -280,11 +280,16 @@ export const deletePost = async (req: AuthRequest, res: Response) => {
         if (!post) return res.status(404).json({ error: "Post not found" });
         if (post.authorId !== userId) return res.status(403).json({ error: "Unauthorized" });
 
-        // This will also delete related Likes and Comments due to Prisma's relation settings
-        await prisma.post.delete({ where: { id: postId } });
+        // Like and Comment have no onDelete: Cascade, so remove them first
+        await prisma.$transaction([
+            prisma.like.deleteMany({ where: { postId } }),
+            prisma.comment.deleteMany({ where: { postId } }),
+            prisma.post.delete({ where: { id: postId } }),
+        ]);
 
         res.json({ message: "Post deleted successfully" });
     } catch (error) {
+        console.error("DELETE POST ERROR:", error);
         res.status(500).json({ error: "Failed to delete post" });
     }
 };
