@@ -14,6 +14,7 @@ import { ReactionType, toggleReaction } from "../lib/reactions";
 import MessageBubble, { LocalMessage } from "../components/messageBubble";
 import MessageActionsSheet from "../components/messageActionsSheet";
 import FingerprintOval from "@/features/fingerkiss/components/fingerprintOval";
+import { ChatHeaderSkeleton, MessagesSkeleton } from "../components/chatSkeleton";
 
 const PAGE_SIZE = 30;
 const NEAR_BOTTOM_PX = 120;
@@ -27,7 +28,7 @@ const ChatRoom = () => {
     const [partner, setPartner] = useState(location.state?.partner ?? null);
 
     const { user: currentUser } = useAppSelector(state => state.authData);
-    const { ok, data, apiMethod } = useAppSelector(state => state.apiData);
+    const { ok, data, apiMethod, loading } = useAppSelector(state => state.apiData);
 
     const { socket, onlineUsers } = useSocket();
 
@@ -52,6 +53,9 @@ const ChatRoom = () => {
     const [isLoadingOlder, setIsLoadingOlder] = useState(false);
     const loadingOlderRef = useRef(false);
     const handledDataRef = useRef<unknown>(null);
+    // Conversación cuya primera página ya llegó (o falló): mientras no coincida se muestra el skeleton
+    const [loadedConversationId, setLoadedConversationId] = useState<string | null>(null);
+    const isInitialLoading = !!conversationId && loadedConversationId !== conversationId;
     const scrollRestoreRef = useRef<{ height: number; top: number; } | null>(null);
     const lastMessageIdRef = useRef<string | undefined>(undefined);
     const isNearBottomRef = useRef(true);
@@ -75,7 +79,11 @@ const ChatRoom = () => {
     useEffect(() => {
         if (!ok && apiMethod === GetMessagesApi.name) {
             loadingOlderRef.current = false;
-            const onFail = () => setIsLoadingOlder(false);
+            const onFail = () => {
+                setIsLoadingOlder(false);
+                // Si falló la primera carga quitamos el skeleton para no dejarlo colgado
+                if (!loading) setLoadedConversationId(conversationId ?? null);
+            };
             onFail();
             return;
         }
@@ -106,6 +114,7 @@ const ChatRoom = () => {
                 setNextCursor(page.meta?.nextCursor ?? null);
                 setReadReceipts(!!page.meta?.readReceipts);
                 setIsLoadingOlder(false);
+                if (isFirstPage) setLoadedConversationId(conversationId ?? null);
             };
             onSetMessages();
             loadingOlderRef.current = false;
@@ -137,7 +146,7 @@ const ChatRoom = () => {
                 onSetPartner();
             }
         }
-    }, [ok, data, apiMethod, currentUser?.id, partner, conversationId, dispatch]);
+    }, [ok, data, apiMethod, loading, currentUser?.id, partner, conversationId, dispatch]);
 
     // Cargar mensajes anteriores al llegar al tope
     useEffect(() => {
@@ -440,6 +449,7 @@ const ChatRoom = () => {
                     <button onClick={() => navigate(-1)} className="p-1 active:opacity-50">
                         <FontAwesomeIcon icon={faChevronLeft} className="text-xl" />
                     </button>
+                    {!partner ? <ChatHeaderSkeleton /> : (
                     <div className="flex items-center gap-2">
                         <img
                             src={getAvatarSrc(partner?.avatarUrl)}
@@ -464,6 +474,7 @@ const ChatRoom = () => {
                             )}
                         </div>
                     </div>
+                    )}
                 </div>
                 <div className="flex items-center">
                     <button
@@ -487,11 +498,9 @@ const ChatRoom = () => {
             <div ref={containerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto p-4 space-y-4">
                 <div ref={topSentinelRef} className="h-1" />
 
-                {isLoadingOlder && (
-                    <div className="flex justify-center py-2">
-                        <div className="animate-spin rounded-full h-5 w-5 border-2 border-zinc-300 border-t-transparent"></div>
-                    </div>
-                )}
+                {isInitialLoading && messages.length === 0 && <MessagesSkeleton />}
+
+                {isLoadingOlder && <MessagesSkeleton count={2} />}
 
                 {!hasMore && messages.length > 0 && (
                     <p className="text-center text-[11px] text-zinc-400 py-2">Inicio de la conversación</p>
