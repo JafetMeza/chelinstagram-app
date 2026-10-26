@@ -4,6 +4,8 @@ export const ROUTES = {
     CHAT_LIST: '/chat-list',
     CHAT_PATH: '/chat/:conversationId',
     CHAT: (conversationId: string) => `/chat/${conversationId}`,
+    FINGERKISS_PATH: '/chat/:conversationId/fingerkiss',
+    FINGERKISS: (conversationId: string) => `/chat/${conversationId}/fingerkiss`,
     EXPLORE: '/explore',
     CREATE: '/create',
     EDIT_PROFILE: '/edit-profile',

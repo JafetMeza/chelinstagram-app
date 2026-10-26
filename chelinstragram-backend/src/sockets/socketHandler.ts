@@ -4,6 +4,7 @@ import { sendPushToUser } from '../controllers/notificationController';
 import { messageInclude, serializeMessage } from '../helper/chatHelper';
 import { addUserSocket, getOnlineUserIds, isUserOnline, removeUserSocket, userRoom } from './presence';
 import { registerMessageEvents } from './messageEvents';
+import { registerFingerkissEvents } from './fingerkissEvents';
 
 let ioInstance: Server | null = null; // 🟢 NEW: lets REST controllers (storyController) emit too
 
@@ -34,6 +35,7 @@ export const handleSockets = (io: Server) => {
         socket.emit('initial_presence', getOnlineUserIds());
 
         registerMessageEvents(io, socket, currentUserId);
+        registerFingerkissEvents(io, socket, currentUserId);
 
         socket.on('send_message', async (data) => {
             const { conversationId, content, tempId } = data ?? {};
