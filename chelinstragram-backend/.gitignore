@@ -9,7 +9,7 @@ dist/
 .env
 
 # Prisma generated files
-/prisma/migrations/
+# Las migraciones SÍ se versionan: el workflow de deploy las aplica en producción
 .prisma/
 
 # Docker volumes

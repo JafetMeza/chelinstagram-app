@@ -40,7 +40,7 @@ const processAndUploadPhoto = async (file: Express.Multer.File): Promise<string>
 
     if (useLocalStorage) {
         const fileExtension = file.originalname.split('.').pop();
-        const fileName = `${Date.now()}-${Math.floor(Math.random() * 1000)}.${fileExtension}`;
+        const fileName = `${Date.now()}-${randomUUID()}.${fileExtension}`;
         const uploadsPath = path.join(__dirname, '../../uploads');
 
         if (!fs.existsSync(uploadsPath)) {
@@ -53,7 +53,7 @@ const processAndUploadPhoto = async (file: Express.Multer.File): Promise<string>
         return `/uploads/${fileName}`;
     } else {
         const fileExtension = file.originalname.split('.').pop();
-        const fileName = `${Date.now()}-${Math.floor(Math.random() * 1000)}.${fileExtension}`;
+        const fileName = `${Date.now()}-${randomUUID()}.${fileExtension}`;
         const filePath = `posts/${fileName}`;
 
         const { data, error } = await supabase.storage
@@ -135,7 +135,7 @@ const processAndUploadVideo = async (
     const tempInputPath = path.join(uploadsPath, tempInputName);
     fs.writeFileSync(tempInputPath, file.buffer);
 
-    const outFileName = `vid-${Date.now()}-${Math.floor(Math.random() * 1000)}.mp4`;
+    const outFileName = `vid-${Date.now()}-${randomUUID()}.mp4`;
     const tempOutputPath = path.join(uploadsPath, outFileName);
 
     const { width: sourceW, height: sourceH } = await getVideoDimensions(tempInputPath);

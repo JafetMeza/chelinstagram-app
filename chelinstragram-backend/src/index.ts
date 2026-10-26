@@ -152,6 +152,15 @@ io.use((socket, next) => {
 
 // -------------------- API ROUTES -----------------------------------
 handleSockets(io);
+// Health check (Render y el workflow de deploy lo consultan tras cada despliegue)
+app.get('/api/health', (req, res) => {
+    res.json({
+        status: 'ok',
+        version: process.env.npm_package_version ?? 'unknown',
+        commit: process.env.RENDER_GIT_COMMIT ?? null // Render lo define en cada deploy
+    });
+});
+
 // Auth Route
 app.post('/api/auth/login', login);
 app.post('/api/auth/refresh', refresh);
