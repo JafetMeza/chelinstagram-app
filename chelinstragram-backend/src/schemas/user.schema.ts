@@ -21,6 +21,7 @@ export const userSchemas = {
             avatarUrl: { type: 'string', nullable: true },
             isFollowing: { type: 'boolean' },
             readReceiptsEnabled: { type: 'boolean', description: 'Only returned for the current user profile' },
+            notifyOnlineEnabled: { type: 'boolean', description: 'Only returned for the current user profile' },
             _count: {
                 type: 'object',
                 properties: {
@@ -56,9 +57,9 @@ export const userSchemas = {
 
     UserSettings: {
         type: 'object',
-        required: ['readReceiptsEnabled'],
         properties: {
-            readReceiptsEnabled: { type: 'boolean', description: 'Read receipts ("Visto"), disabled by default' }
+            readReceiptsEnabled: { type: 'boolean', description: 'Read receipts ("Visto"), disabled by default' },
+            notifyOnlineEnabled: { type: 'boolean', description: 'Push when someone you chat with comes online, enabled by default' }
         }
     },
 

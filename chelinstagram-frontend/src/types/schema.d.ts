@@ -27,6 +27,8 @@ export interface UserProfile {
   isFollowing?: boolean;
   /** Only returned for the current user profile */
   readReceiptsEnabled?: boolean;
+  /** Only returned for the current user profile */
+  notifyOnlineEnabled?: boolean;
   _count?: {
     followers?: number;
     following?: number;
@@ -119,7 +121,9 @@ export interface MessagesPage {
 
 export interface UserSettings {
   /** Read receipts ("Visto"), disabled by default */
-  readReceiptsEnabled: boolean;
+  readReceiptsEnabled?: boolean;
+  /** Push when someone you chat with comes online, enabled by default */
+  notifyOnlineEnabled?: boolean;
 }
 
 export interface Conversation {
@@ -197,12 +201,42 @@ export interface CommentRequest {
   content: string;
 }
 
+/** Texto del editor de historias; x/y en % del lienzo cuadrado, fontSize en % del ancho (cqw) */
+export interface StoryTextOverlay {
+  id: string;
+  /** @maxLength 300 */
+  text: string;
+  /**
+   * @min 0
+   * @max 100
+   */
+  x: number;
+  /**
+   * @min 0
+   * @max 100
+   */
+  y: number;
+  /** @example "#ffffff" */
+  color: string;
+  /**
+   * @min 4
+   * @max 20
+   */
+  fontSize: number;
+  align: "left" | "center" | "right";
+  font: "classic" | "serif" | "script" | "hand" | "typewriter" | "display" | "rounded";
+  bold: boolean;
+  italic: boolean;
+  underline: boolean;
+}
+
 export interface Story {
   id?: string;
   mediaUrl?: string;
   mediaType?: "IMAGE" | "VIDEO";
   /** @example 15 */
   duration?: number;
+  textOverlays?: StoryTextOverlay[];
   /** @format date-time */
   expiresAt?: string;
   /** @format date-time */

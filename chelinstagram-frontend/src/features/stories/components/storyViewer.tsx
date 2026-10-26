@@ -7,6 +7,7 @@ import { GetStoryViewersApi, ViewStoryApi } from "@/service/api.service";
 import { Url } from "@/service/helpers/urlConstants";
 import type { StoryGroup, StoryViewer } from "@/types/schema";
 import StoryViewersSheet from './storyViewersSheet';
+import TextOverlayLayer from './textOverlayLayer';
 
 interface StoryViewerProps {
     group: StoryGroup;
@@ -141,20 +142,26 @@ const StoryViewer = ({ group, isOwnStory, onClose }: StoryViewerProps) => {
                 </button>
             </div>
 
-            <div className="flex-1 relative flex items-center justify-center overflow-hidden">
-                {current.mediaType === 'VIDEO' ? (
-                    <video
-                        ref={videoRef}
-                        src={mediaUrl}
-                        className="max-w-full max-h-full"
-                        autoPlay
-                        playsInline
-                        onTimeUpdate={handleVideoTimeUpdate}
-                        onEnded={goNext}
-                    />
-                ) : (
-                    <img src={mediaUrl} className="max-w-full max-h-full" alt="" />
-                )}
+            <div className="flex-1 relative flex items-center justify-center overflow-hidden [container-type:size]">
+                {/* Lienzo cuadrado, igual que en el editor: el texto usa % y cqw de este lienzo */}
+                <div className="relative aspect-square @container" style={{ width: 'min(100cqw, 100cqh)' }}>
+                    {current.mediaType === 'VIDEO' ? (
+                        <video
+                            ref={videoRef}
+                            src={mediaUrl}
+                            className="absolute inset-0 w-full h-full object-contain"
+                            autoPlay
+                            playsInline
+                            onTimeUpdate={handleVideoTimeUpdate}
+                            onEnded={goNext}
+                        />
+                    ) : (
+                        <img src={mediaUrl} className="absolute inset-0 w-full h-full object-contain" alt="" />
+                    )}
+                    {current.textOverlays && current.textOverlays.length > 0 && (
+                        <TextOverlayLayer overlays={current.textOverlays} />
+                    )}
+                </div>
 
                 {!showViewers && (
                     <>

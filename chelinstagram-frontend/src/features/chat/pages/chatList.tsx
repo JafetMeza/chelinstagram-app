@@ -7,7 +7,7 @@ import { Conversation, SearchUser, Participant, Message } from "@/types/schema";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSearch, faTrash } from '@fortawesome/free-solid-svg-icons';
 import BridgeWidget from "../components/bridgeWidget";
-import ChatSkeleton from "../components/chatSkeleton";
+import { ChatListSkeleton } from "../components/chatSkeleton";
 import { getAvatarSrc } from "@/helpers/imageUtils";
 
 // 1. Importar el socket
@@ -23,6 +23,9 @@ const ChatList = () => {
     const { socket, onlineUsers } = useSocket();
 
     const [conversations, setConversations] = useState<Conversation[]>([]);
+    // El flag global "loading" lo pisan otras peticiones (p. ej. el clima), así que el
+    // skeleton depende de si ya llegó (o falló) la lista de conversaciones
+    const [hasLoadedConversations, setHasLoadedConversations] = useState(false);
     const [following, setFollowing] = useState<SearchUser[]>([]);
     const [searchQuery, setSearchQuery] = useState("");
 
@@ -111,10 +114,15 @@ const ChatList = () => {
     }, [dispatch, currentUser]);
 
     useEffect(() => {
+        if (!ok && !loading && apiMethod === GetConversationsApi.name) {
+            const onFailConversations = () => setHasLoadedConversations(true);
+            onFailConversations();
+        }
         if (ok) {
             if (apiMethod === GetConversationsApi.name) {
                 const onSetConversations = () => {
                     setConversations(data as Conversation[]);
+                    setHasLoadedConversations(true);
                 };
                 onSetConversations();
             }
@@ -140,7 +148,7 @@ const ChatList = () => {
                 onDeleteConversion();
             }
         }
-    }, [ok, data, apiMethod, currentUser?.id, navigate, dispatch]);
+    }, [ok, data, apiMethod, loading, currentUser?.id, navigate, dispatch]);
 
     const handleStartChat = (recipientId: string) => {
         dispatch(PostApi([recipientId], StartConversationApi));
@@ -188,8 +196,8 @@ const ChatList = () => {
 
             {/* CHAT LIST */}
             <div className="flex-1 overflow-y-auto px-1">
-                {loading && conversations.length === 0 ? (
-                    <div className="mt-2"><ChatSkeleton /><ChatSkeleton /></div>
+                {!hasLoadedConversations && conversations.length === 0 ? (
+                    <ChatListSkeleton />
                 ) : searchQuery.length > 0 ? (
                     <div className="mt-2">
                         <span className="px-3 text-[10px] font-bold text-zinc-400 uppercase tracking-tight">New Message</span>

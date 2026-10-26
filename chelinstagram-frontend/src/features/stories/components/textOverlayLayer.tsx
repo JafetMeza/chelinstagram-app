@@ -1,4 +1,6 @@
+import '../lib/fonts';
 import { TextOverlay } from '../lib/types';
+import { OVERLAY_TEXT_CLASS, getOverlayPositionStyle, getOverlayTextStyle } from '../lib/overlayStyle';
 
 interface TextOverlayLayerProps {
     overlays: TextOverlay[];
@@ -15,18 +17,10 @@ const TextOverlayLayer = ({ overlays, selectedId, onPointerDownOverlay }: TextOv
                 <div
                     key={o.id}
                     onPointerDown={interactive ? (e) => onPointerDownOverlay!(o.id, e) : undefined}
-                    className={`absolute whitespace-pre-wrap break-words max-w-[85%] font-bold leading-tight
+                    className={`absolute ${OVERLAY_TEXT_CLASS}
                         ${interactive ? 'pointer-events-auto cursor-grab active:cursor-grabbing touch-none' : ''}
-                        ${selectedId === o.id ? 'ring-2 ring-blue-400 ring-offset-2 ring-offset-transparent rounded-sm' : ''}`}
-                    style={{
-                        left: `${o.x}%`,
-                        top: `${o.y}%`,
-                        transform: 'translate(-50%, -50%)',
-                        color: o.color,
-                        fontSize: `${o.fontSize}cqw`,
-                        textAlign: o.align,
-                        textShadow: '0 1px 3px rgba(0,0,0,0.6)',
-                    }}
+                        ${selectedId === o.id ? 'outline-2 outline-dashed outline-white/70 outline-offset-4 rounded-sm' : ''}`}
+                    style={{ ...getOverlayPositionStyle(o), ...getOverlayTextStyle(o) }}
                 >
                     {o.text}
                 </div>

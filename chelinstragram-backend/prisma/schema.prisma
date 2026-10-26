@@ -34,6 +34,8 @@ model User {
 
   // Chat
   readReceiptsEnabled Boolean           @default(false) // "Visto" opcional, desactivado por defecto
+  notifyOnlineEnabled Boolean  @default(true) // push "X está en línea"
+  lastSeenAt          DateTime? // última vez conectado (para no avisar en reconexiones)
   messageReactions    MessageReaction[]
 }
 
@@ -94,6 +96,7 @@ model Story {
   mediaUrl    String    
   mediaType   MediaType   @default(IMAGE) 
   duration    Int         @default(15) 
+  textOverlays Json?      // textos del editor (ver src/config/storyText.ts); null en historias viejas
   expiresAt   DateTime  
   createdAt   DateTime    @default(now())
   

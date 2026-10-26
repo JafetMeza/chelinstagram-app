@@ -1,11 +1,12 @@
 import { Post, Comment } from "@/types/schema";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faHeart as faHeartReg, faComment as faCommentReg, faEdit } from '@fortawesome/free-regular-svg-icons';
+import { faComment as faCommentReg, faEdit } from '@fortawesome/free-regular-svg-icons';
 // 🟢 IMPORTANTE: Añadidos faVolumeMute y faVolumeUp
-import { faEllipsisVertical, faHeart as faHeartSolid, faLocationDot, faThumbtack, faTrash, faXmark, faVolumeMute, faVolumeUp } from '@fortawesome/free-solid-svg-icons';
+import { faEllipsisVertical, faLocationDot, faThumbtack, faTrash, faXmark, faVolumeMute, faVolumeUp } from '@fortawesome/free-solid-svg-icons';
 import { ROUTES } from "@/routes";
 import { useNavigate } from "react-router";
 import { useRef, useState } from "react";
+import { AnimatedLikeCount, DoubleTapHeart, HeartBurstData, LikeButton } from "./likeAnimations";
 import { getAvatarSrc } from "@/helpers/imageUtils";
 import { Url } from "@/service/helpers/urlConstants";
 
@@ -37,7 +38,12 @@ const PostCard = ({
     const menuRef = useRef<HTMLDivElement>(null);
     const [commentText, setCommentText] = useState("");
 
-    const [heartPos, setHeartPos] = useState<{ x: number, y: number; } | null>(null);
+    // Animaciones del like: varios corazones pueden convivir si se hace doble tap seguido
+    const [heartBursts, setHeartBursts] = useState<HeartBurstData[]>([]);
+    const burstIdRef = useRef(0);
+    const [likeKey, setLikeKey] = useState(0);
+    const [unlikeKey, setUnlikeKey] = useState(0);
+    const [countDirection, setCountDirection] = useState<'up' | 'down' | null>(null);
     const lastTap = useRef<number>(0);
 
     // 🟢 NUEVO: Estado para el volumen en el feed
@@ -60,21 +66,38 @@ const PostCard = ({
         }
     };
 
+    const like = () => {
+        if (!post.id) return;
+        onToggleLike(post.id);
+        setLikeKey((k) => k + 1);
+        setCountDirection('up');
+        navigator.vibrate?.(12);
+    };
+
+    const handleLikeButton = (e: React.MouseEvent<HTMLButtonElement>) => {
+        e.currentTarget.blur();
+        if (!post.id) return;
+        if (isLiked) {
+            onToggleLike(post.id);
+            setUnlikeKey((k) => k + 1);
+            setCountDirection('down');
+        } else {
+            like();
+        }
+    };
+
     const handleImageClick = (e: React.MouseEvent<HTMLDivElement>) => {
         const now = Date.now();
         const DOUBLE_TAP_DELAY = 300;
 
-        if (now - lastTap.current < DOUBLE_TAP_DELAY) {
-            if (post.id) {
-                const rect = e.currentTarget.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
+        if (now - lastTap.current < DOUBLE_TAP_DELAY && post.id) {
+            const rect = e.currentTarget.getBoundingClientRect();
+            const id = ++burstIdRef.current;
+            setHeartBursts((prev) => [...prev, { id, x: e.clientX - rect.left, y: e.clientY - rect.top }]);
+            setTimeout(() => setHeartBursts((prev) => prev.filter((b) => b.id !== id)), 1100);
 
-                onToggleLike(post.id);
-
-                setHeartPos({ x, y });
-                setTimeout(() => setHeartPos(null), 700);
-            }
+            // Como en Instagram: el doble tap solo da like, nunca lo quita
+            if (!isLiked) like();
         }
         lastTap.current = now;
     };
@@ -193,37 +216,14 @@ const PostCard = ({
                     />
                 )}
 
-                {heartPos && (
-                    <div
-                        className="absolute z-10 pointer-events-none"
-                        style={{
-                            left: heartPos.x,
-                            top: heartPos.y,
-                            transform: 'translate(-50%, -50%)'
-                        }}
-                    >
-                        <FontAwesomeIcon
-                            icon={faHeartSolid}
-                            className="text-7xl drop-shadow-2xl text-red-500 animate-in zoom-in fade-in duration-200"
-                        />
-                    </div>
-                )}
+                {heartBursts.map((burst) => (
+                    <DoubleTapHeart key={burst.id} {...burst} />
+                ))}
             </div>
 
             <div className="flex items-center justify-between px-1 py-3 text-black dark:text-white w-full">
                 <div className="flex gap-4 text-2xl">
-                    <button
-                        type="button"
-                        onClick={(e) => {
-                            e.currentTarget.blur();
-                            if (post.id) {
-                                onToggleLike(post.id);
-                            }
-                        }}
-                        className={`transition-transform active:scale-125 duration-100 ${isLiked ? 'text-red-500' : 'hover:text-gray-500'}`}
-                    >
-                        <FontAwesomeIcon icon={isLiked ? faHeartSolid : faHeartReg} />
-                    </button>
+                    <LikeButton isLiked={isLiked} likeKey={likeKey} unlikeKey={unlikeKey} onClick={handleLikeButton} />
 
                     <button
                         type="button"
@@ -254,7 +254,7 @@ const PostCard = ({
             </div>
 
             <div className="px-1 text-black dark:text-white">
-                <p className="font-bold text-sm mb-1">{post.likesCount} likes</p>
+                <p className="font-bold text-sm mb-1"><AnimatedLikeCount count={post.likesCount ?? 0} direction={countDirection} /> likes</p>
                 <div className="text-sm">
                     <span className="font-bold mr-2">{post.author?.displayName || post.author?.username}</span>
                     <span className="whitespace-pre-line">{post.caption}</span>

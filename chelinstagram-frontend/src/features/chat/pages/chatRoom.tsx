@@ -1,9 +1,9 @@
 import React, { useEffect, useLayoutEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import { GetApi } from "@/redux/middleware/httpMethod.mid";
+import { useAppSelector } from "@/redux/hooks";
 import { GetConversationsApi, GetMessagesApi } from "@/service/api.service";
-import { Conversation, MessagesPage } from "@/types/schema";
+import { ResponseStatus } from "@/service/helpers/serviceConstants";
+import type { User } from "@/types/schema";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronLeft, faPaperPlane, faInfoCircle, faPen, faXmark, faCheck } from '@fortawesome/free-solid-svg-icons';
 import { getAvatarSrc } from "@/helpers/imageUtils";
@@ -14,6 +14,7 @@ import { ReactionType, toggleReaction } from "../lib/reactions";
 import MessageBubble, { LocalMessage } from "../components/messageBubble";
 import MessageActionsSheet from "../components/messageActionsSheet";
 import FingerprintOval from "@/features/fingerkiss/components/fingerprintOval";
+import { ChatHeaderSkeleton, MessagesSkeleton } from "../components/chatSkeleton";
 
 const PAGE_SIZE = 30;
 const NEAR_BOTTOM_PX = 120;
@@ -22,12 +23,10 @@ const ChatRoom = () => {
     const { conversationId } = useParams();
     const location = useLocation();
     const navigate = useNavigate();
-    const dispatch = useAppDispatch();
 
-    const [partner, setPartner] = useState(location.state?.partner ?? null);
+    const [partner, setPartner] = useState<User | null>(location.state?.partner ?? null);
 
     const { user: currentUser } = useAppSelector(state => state.authData);
-    const { ok, data, apiMethod } = useAppSelector(state => state.apiData);
 
     const { socket, onlineUsers } = useSocket();
 
@@ -51,7 +50,11 @@ const ChatRoom = () => {
     const [nextCursor, setNextCursor] = useState<string | null>(null);
     const [isLoadingOlder, setIsLoadingOlder] = useState(false);
     const loadingOlderRef = useRef(false);
-    const handledDataRef = useRef<unknown>(null);
+    // Conversación cuya primera página ya llegó (o falló): mientras no coincida se muestra el skeleton
+    const [loadedConversationId, setLoadedConversationId] = useState<string | null>(null);
+    const [loadError, setLoadError] = useState(false);
+    const isInitialLoading = !!conversationId && loadedConversationId !== conversationId;
+    const activeConversationRef = useRef(conversationId);
     const scrollRestoreRef = useRef<{ height: number; top: number; } | null>(null);
     const lastMessageIdRef = useRef<string | undefined>(undefined);
     const isNearBottomRef = useRef(true);
@@ -64,80 +67,85 @@ const ChatRoom = () => {
     // Copia del mensaje antes de un cambio optimista, para revertir si el servidor falla
     const pendingActionsRef = useRef<Record<string, LocalMessage>>({});
 
-    // Fetch inicial: la página más reciente
-    useEffect(() => {
-        if (conversationId) {
-            dispatch(GetApi([conversationId, `limit=${PAGE_SIZE}`], GetMessagesApi));
-        }
-    }, [dispatch, conversationId]);
+    // Los mensajes se piden directo y no por el slot global de Redux (state.apiData): ese slot
+    // es único y cualquier otra petición que se cruce (al abrir desde una push, por ejemplo)
+    // pisaba la respuesta, y el chat se quedaba en blanco.
+    const loadPage = useCallback(async (cursor?: string) => {
+        if (!conversationId) return;
+        const requestedFor = conversationId;
+        const query = cursor ? `limit=${PAGE_SIZE}&cursor=${cursor}` : `limit=${PAGE_SIZE}`;
+        const result = await GetMessagesApi(requestedFor, query);
 
-    // Cargar historial en el estado
-    useEffect(() => {
-        if (!ok && apiMethod === GetMessagesApi.name) {
-            loadingOlderRef.current = false;
-            const onFail = () => setIsLoadingOlder(false);
-            onFail();
+        if (activeConversationRef.current !== requestedFor) return; // ya se cambió de chat
+        loadingOlderRef.current = false;
+
+        if (result.status !== ResponseStatus.OK || !result.data) {
+            setIsLoadingOlder(false);
+            if (!cursor) {
+                setLoadError(true);
+                setLoadedConversationId(requestedFor);
+            }
             return;
         }
-        // Cada respuesta se procesa una sola vez aunque cambien otras dependencias
-        if (!ok || handledDataRef.current === data) return;
 
-        if (apiMethod === GetMessagesApi.name) {
-            handledDataRef.current = data;
-            const page = data as MessagesPage;
-            const fetchedMessages = (page.data ?? []) as LocalMessage[];
-            const isFirstPage = !page.meta?.cursor;
+        const page = result.data;
+        const fetchedMessages = (page.data ?? []) as LocalMessage[];
 
-            const onSetMessages = () => {
-                if (isFirstPage) {
-                    // Conservamos lo que llegó por socket mientras cargaba
-                    const fetchedIds = new Set(fetchedMessages.map(m => m.id));
-                    setMessages(prev => [...fetchedMessages, ...prev.filter(m => !fetchedIds.has(m.id))]);
-                } else {
-                    // Mensajes viejos arriba: guardamos el scroll para no saltar
-                    const el = containerRef.current;
-                    if (el) scrollRestoreRef.current = { height: el.scrollHeight, top: el.scrollTop };
-                    setMessages(prev => {
-                        const existingIds = new Set(prev.map(m => m.id));
-                        return [...fetchedMessages.filter(m => !existingIds.has(m.id)), ...prev];
-                    });
-                }
-                setHasMore(!!page.meta?.hasMore);
-                setNextCursor(page.meta?.nextCursor ?? null);
-                setReadReceipts(!!page.meta?.readReceipts);
-                setIsLoadingOlder(false);
-            };
-            onSetMessages();
-            loadingOlderRef.current = false;
-
-            if (!partner) {
-                // 🟢 FIX 2: Uso seguro de optional chaining para currentUser
-                const otherMessage = fetchedMessages.find(m => m.senderId !== currentUser?.id);
-                if (otherMessage?.sender) {
-                    const onSetPartner = () => {
-                        setPartner(otherMessage.sender);
-                    };
-                    onSetPartner();
-                } else if (isFirstPage) {
-                    // El otro usuario aún no ha escrito (URL directa, recarga o push):
-                    // lo obtenemos de los participantes de la conversación
-                    dispatch(GetApi([], GetConversationsApi));
-                }
-            }
+        if (!cursor) {
+            // Conservamos lo que llegó por socket mientras cargaba
+            const fetchedIds = new Set(fetchedMessages.map(m => m.id));
+            setMessages(prev => [...fetchedMessages, ...prev.filter(m => !fetchedIds.has(m.id))]);
+        } else {
+            // Mensajes viejos arriba: guardamos el scroll para no saltar
+            const el = containerRef.current;
+            if (el) scrollRestoreRef.current = { height: el.scrollHeight, top: el.scrollTop };
+            setMessages(prev => {
+                const existingIds = new Set(prev.map(m => m.id));
+                return [...fetchedMessages.filter(m => !existingIds.has(m.id)), ...prev];
+            });
         }
+        setHasMore(!!page.meta?.hasMore);
+        setNextCursor(page.meta?.nextCursor ?? null);
+        setReadReceipts(!!page.meta?.readReceipts);
+        setIsLoadingOlder(false);
 
-        if (apiMethod === GetConversationsApi.name && !partner) {
-            handledDataRef.current = data;
-            const conversation = (data as Conversation[]).find(c => c.id === conversationId);
+        // Si no sabemos con quién hablamos, lo sacamos de sus mensajes
+        const otherSender = fetchedMessages.find(m => m.senderId !== currentUser?.id)?.sender;
+        if (otherSender) setPartner(prev => prev ?? otherSender);
+
+        if (!cursor) {
+            setLoadError(false);
+            setLoadedConversationId(requestedFor);
+        }
+    }, [conversationId, currentUser?.id]);
+
+    // Fetch inicial: la página más reciente
+    useEffect(() => {
+        activeConversationRef.current = conversationId;
+        const onLoadFirstPage = () => { loadPage(); };
+        onLoadFirstPage();
+    }, [conversationId, loadPage]);
+
+    const retryInitialLoad = () => {
+        setLoadError(false);
+        setLoadedConversationId(null);
+        loadPage();
+    };
+
+    // El otro usuario aún no ha escrito (URL directa, recarga o push):
+    // lo obtenemos de los participantes de la conversación
+    useEffect(() => {
+        if (partner || isInitialLoading || !conversationId) return;
+        let cancelled = false;
+        (async () => {
+            const result = await GetConversationsApi();
+            if (cancelled || result.status !== ResponseStatus.OK) return;
+            const conversation = result.data?.find(c => c.id === conversationId);
             const partnerUser = conversation?.participants?.find(p => p.userId !== currentUser?.id)?.user;
-            if (partnerUser) {
-                const onSetPartner = () => {
-                    setPartner(partnerUser);
-                };
-                onSetPartner();
-            }
-        }
-    }, [ok, data, apiMethod, currentUser?.id, partner, conversationId, dispatch]);
+            if (partnerUser) setPartner(prev => prev ?? partnerUser);
+        })();
+        return () => { cancelled = true; };
+    }, [partner, isInitialLoading, conversationId, currentUser?.id]);
 
     // Cargar mensajes anteriores al llegar al tope
     useEffect(() => {
@@ -149,13 +157,13 @@ const ChatRoom = () => {
             if (entries[0].isIntersecting && !loadingOlderRef.current) {
                 loadingOlderRef.current = true;
                 setIsLoadingOlder(true);
-                dispatch(GetApi([conversationId, `limit=${PAGE_SIZE}&cursor=${nextCursor}`], GetMessagesApi));
+                loadPage(nextCursor);
             }
         }, { root, rootMargin: '150px 0px 0px 0px' });
 
         observer.observe(target);
         return () => observer.disconnect();
-    }, [hasMore, nextCursor, conversationId, dispatch]);
+    }, [hasMore, nextCursor, conversationId, loadPage]);
 
     const markRead = useCallback(() => {
         if (socket && conversationId && document.visibilityState === 'visible') {
@@ -440,6 +448,7 @@ const ChatRoom = () => {
                     <button onClick={() => navigate(-1)} className="p-1 active:opacity-50">
                         <FontAwesomeIcon icon={faChevronLeft} className="text-xl" />
                     </button>
+                    {!partner ? <ChatHeaderSkeleton /> : (
                     <div className="flex items-center gap-2">
                         <img
                             src={getAvatarSrc(partner?.avatarUrl)}
@@ -464,6 +473,7 @@ const ChatRoom = () => {
                             )}
                         </div>
                     </div>
+                    )}
                 </div>
                 <div className="flex items-center">
                     <button
@@ -487,11 +497,22 @@ const ChatRoom = () => {
             <div ref={containerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto p-4 space-y-4">
                 <div ref={topSentinelRef} className="h-1" />
 
-                {isLoadingOlder && (
-                    <div className="flex justify-center py-2">
-                        <div className="animate-spin rounded-full h-5 w-5 border-2 border-zinc-300 border-t-transparent"></div>
+                {isInitialLoading && messages.length === 0 && <MessagesSkeleton />}
+
+                {loadError && messages.length === 0 && (
+                    <div className="flex flex-col items-center gap-3 py-10 text-center">
+                        <p className="text-sm text-zinc-500">No se pudieron cargar los mensajes.</p>
+                        <button
+                            type="button"
+                            onClick={retryInitialLoad}
+                            className="text-sm font-semibold text-blue-500 px-4 py-2 rounded-full bg-blue-50 dark:bg-blue-900/20 active:scale-95 transition-transform"
+                        >
+                            Reintentar
+                        </button>
                     </div>
                 )}
+
+                {isLoadingOlder && <MessagesSkeleton count={2} />}
 
                 {!hasMore && messages.length > 0 && (
                     <p className="text-center text-[11px] text-zinc-400 py-2">Inicio de la conversación</p>
