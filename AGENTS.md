@@ -46,7 +46,7 @@ No hay suite de tests automatizados. Como mínimo verifica **`npx tsc --noEmit` 
 ## CI/CD
 
 - **CI** (`.github/workflows/ci.yml`, en PRs a `main`/`develop` y push a `develop`): backend (`prisma validate`, `tsc --noEmit`, build, aplica las migraciones en un Postgres efímero y falla si `schema.prisma` no coincide con ellas), frontend (build; lint informativo) y `pnpm audit` informativo.
-- **Deploy** (`.github/workflows/deploy.yml`, en push a `main`): CI → `prisma migrate deploy` en Supabase → deploy hook de Render → espera `/api/health`. Vercel despliega el frontend con su integración de Git.
+- **Deploy** (`.github/workflows/deploy.yml`, en push a `main`): CI → `prisma migrate deploy` en Supabase. Render (Auto-Deploy "After CI Checks Pass") despliega el backend solo cuando todos esos checks pasan, así que la BD siempre se migra antes; no agregues jobs que esperen a Render. Vercel despliega el frontend con su integración de Git.
 - **Migraciones versionadas** en `chelinstragram-backend/prisma/migrations/`. Cada cambio a `schema.prisma` necesita su migración (`pnpm db:migrate --name ...`) o el CI falla. Las migraciones deben ser compatibles con el backend anterior (aditivas), porque se aplican antes de que Render cambie de versión.
 - **Supabase**: la app no usa la API REST de Supabase. El schema `public` tiene RLS activo sin políticas y sin privilegios para `anon`/`authenticated`; no lo abras. Las tablas nuevas que crea Prisma heredan el revoke, pero activa RLS en ellas en su migración (`ALTER TABLE ... ENABLE ROW LEVEL SECURITY`).
 
