@@ -11,7 +11,6 @@ import StoryLifetimePicker from './storyLifetimePicker';
 import StoryTextEditor from './storyTextEditor';
 import StoryViewer from './storyViewer';
 import { TextOverlay } from '../lib/types';
-import { bakeTextOverlaysOntoImage } from '../lib/textOverlayUtils';
 import type { StoryGroup } from "@/types/schema";
 
 type CreateStep = 'idle' | 'trimming' | 'texting' | 'lifetime';
@@ -126,19 +125,8 @@ const StoryTray = () => {
 
         setUploading(true);
 
-        // 🟢 Bake text onto the image right before upload — keeps the base
-        // image untouched so the user can go back and re-edit text freely.
-        let fileToUpload = pendingFile;
-        if (pendingType === 'image' && textOverlays.length > 0) {
-            try {
-                fileToUpload = await bakeTextOverlaysOntoImage(pendingFile, textOverlays);
-            } catch (err) {
-                console.error('Failed to render text onto story image', err);
-            }
-        }
-
         const formData = new FormData();
-        formData.append('media', fileToUpload);
+        formData.append('media', pendingFile);
         formData.append('lifetimeMinutes', lifetimeMinutes.toString());
 
         if (pendingType === 'video' && videoMeta) {
@@ -150,9 +138,9 @@ const StoryTray = () => {
             formData.append('cropSize', videoMeta.crop.size.toString());
         }
 
-        // 🟢 Video text can't be burned in client-side — send it as metadata
-        // for the player/backend to composite on playback.
-        if (pendingType === 'video' && textOverlays.length > 0) {
+        // El texto ya no se "quema" en la imagen: se guarda como datos y el visor lo pinta
+        // con el mismo componente que el editor (imagen y video), así queda idéntico.
+        if (textOverlays.length > 0) {
             formData.append('textOverlays', JSON.stringify(textOverlays));
         }
 
@@ -247,6 +235,7 @@ const StoryTray = () => {
                 <StoryTextEditor
                     previewUrl={pendingPreview}
                     mediaType={pendingType}
+                    crop={videoMeta?.crop}
                     initialOverlays={textOverlays}
                     onConfirm={handleTextConfirm}
                     onCancel={resetCreationState}
@@ -258,6 +247,7 @@ const StoryTray = () => {
                     previewUrl={pendingPreview}
                     mediaType={pendingType}
                     uploading={uploading}
+                    crop={videoMeta?.crop}
                     textOverlays={textOverlays}
                     onEditText={() => setCreateStep('texting')}
                     onConfirm={handleLifetimeConfirm}

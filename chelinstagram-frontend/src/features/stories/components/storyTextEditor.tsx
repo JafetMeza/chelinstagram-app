@@ -1,8 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faXmark, faFont, faTrash, faMinus, faPlus } from '@fortawesome/free-solid-svg-icons';
+import { faXmark, faFont, faTrash, faMinus, faPlus, faBold, faItalic, faUnderline } from '@fortawesome/free-solid-svg-icons';
 import TextOverlayLayer from './textOverlayLayer';
-import { TextOverlay, TEXT_COLORS, MIN_FONT_SIZE, MAX_FONT_SIZE, DEFAULT_FONT_SIZE } from '../lib/types';
+import { OVERLAY_TEXT_CLASS, getOverlayPositionStyle, getOverlayTextStyle } from '../lib/overlayStyle';
+import StoryMediaPreview from './storyMediaPreview';
+import {
+    TextOverlay, MediaCrop, STORY_FONTS, TEXT_COLORS,
+    MIN_FONT_SIZE, MAX_FONT_SIZE, DEFAULT_FONT_SIZE, MAX_TEXT_OVERLAYS, MAX_TEXT_LENGTH,
+} from '../lib/types';
 
 const createOverlayId = () =>
     typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -10,16 +15,18 @@ const createOverlayId = () =>
         : `ov_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
 const DRAG_THRESHOLD_PX = 6;
+const PLACEHOLDER = 'Type something';
 
 interface StoryTextEditorProps {
     previewUrl: string;
     mediaType: 'image' | 'video';
+    crop?: MediaCrop | null;
     initialOverlays: TextOverlay[];
     onConfirm: (overlays: TextOverlay[]) => void;
     onCancel: () => void;
 }
 
-const StoryTextEditor = ({ previewUrl, mediaType, initialOverlays, onConfirm, onCancel }: StoryTextEditorProps) => {
+const StoryTextEditor = ({ previewUrl, mediaType, crop, initialOverlays, onConfirm, onCancel }: StoryTextEditorProps) => {
     const [overlays, setOverlays] = useState<TextOverlay[]>(initialOverlays);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -36,18 +43,7 @@ const StoryTextEditor = ({ previewUrl, mediaType, initialOverlays, onConfirm, on
 
     const editingOverlay = overlays.find((o) => o.id === editingId) ?? null;
     const activeId = editingId ?? selectedId;
-
-    const editingRef = useRef<HTMLTextAreaElement>(null);
-
-    // 🟢 Autosize: without this, rows={1} kept the box pinned to one line's
-    // height and any wrapped/oversized text got clipped by the textarea's
-    // own overflow, which is what made it "disappear".
-    useEffect(() => {
-        const el = editingRef.current;
-        if (!el) return;
-        el.style.height = 'auto';
-        el.style.height = `${el.scrollHeight}px`;
-    }, [editingOverlay?.text, editingOverlay?.fontSize]);
+    const activeOverlay = overlays.find((o) => o.id === activeId) ?? null;
 
     const updateOverlay = (id: string, patch: Partial<TextOverlay>) => {
         setOverlays((prev) => prev.map((o) => (o.id === id ? { ...o, ...patch } : o)));
@@ -60,10 +56,14 @@ const StoryTextEditor = ({ previewUrl, mediaType, initialOverlays, onConfirm, on
     };
 
     const addText = () => {
+        if (overlays.length >= MAX_TEXT_OVERLAYS) return;
         const id = createOverlayId();
         setOverlays((prev) => [
             ...prev,
-            { id, text: '', x: 50, y: 50, color: '#ffffff', fontSize: DEFAULT_FONT_SIZE, align: 'center' },
+            {
+                id, text: '', x: 50, y: 50, color: '#ffffff', fontSize: DEFAULT_FONT_SIZE, align: 'center',
+                font: 'classic', bold: true, italic: false, underline: false,
+            },
         ]);
         setSelectedId(id);
         setEditingId(id);
@@ -86,13 +86,18 @@ const StoryTextEditor = ({ previewUrl, mediaType, initialOverlays, onConfirm, on
         if (!container || !overlay) return;
 
         setSelectedId(id);
+        const rect = container.getBoundingClientRect();
+        // Mitad del tamaño del texto en %: el centro se limita para que la caja no se salga del lienzo
+        const textRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        const halfW = Math.min(50, (textRect.width / rect.width) * 50);
+        const halfH = Math.min(50, (textRect.height / rect.height) * 50);
         dragState.current = {
             id,
             startClientX: e.clientX,
             startClientY: e.clientY,
             startX: overlay.x,
             startY: overlay.y,
-            rect: container.getBoundingClientRect(),
+            rect,
             moved: false,
         };
 
@@ -104,8 +109,8 @@ const StoryTextEditor = ({ previewUrl, mediaType, initialOverlays, onConfirm, on
             if (Math.abs(dx) > DRAG_THRESHOLD_PX || Math.abs(dy) > DRAG_THRESHOLD_PX) drag.moved = true;
 
             updateOverlay(drag.id, {
-                x: Math.min(95, Math.max(5, drag.startX + (dx / drag.rect.width) * 100)),
-                y: Math.min(95, Math.max(5, drag.startY + (dy / drag.rect.height) * 100)),
+                x: Math.min(100 - halfW, Math.max(halfW, drag.startX + (dx / drag.rect.width) * 100)),
+                y: Math.min(100 - halfH, Math.max(halfH, drag.startY + (dy / drag.rect.height) * 100)),
             });
         };
 
@@ -128,15 +133,14 @@ const StoryTextEditor = ({ previewUrl, mediaType, initialOverlays, onConfirm, on
     };
 
     const handleDone = () => {
-        if (editingId) {
-            const overlay = overlays.find((o) => o.id === editingId);
-            if (overlay && !overlay.text.trim()) {
-                onConfirm(overlays.filter((o) => o.id !== editingId));
-                return;
-            }
-        }
         onConfirm(overlays.filter((o) => o.text.trim()));
     };
+
+    // Los botones de estilo no deben robarle el foco al textarea (cerraría la edición)
+    const keepFocus = (e: React.MouseEvent) => e.preventDefault();
+
+    const toggleButtonClass = (active: boolean) =>
+        `w-9 h-9 rounded-full flex items-center justify-center text-sm transition-colors ${active ? 'bg-white text-black' : 'bg-zinc-800 text-white'}`;
 
     return (
         <div className="fixed inset-0 z-50 bg-black flex flex-col">
@@ -154,13 +158,9 @@ const StoryTextEditor = ({ previewUrl, mediaType, initialOverlays, onConfirm, on
                 <div
                     ref={containerRef}
                     onPointerDown={handleBackgroundPointerDown}
-                    className="relative w-full max-w-md aspect-square rounded-xl overflow-hidden bg-zinc-900 touch-none @container"
+                    className="relative w-full max-w-md aspect-square rounded-xl overflow-hidden bg-black touch-none @container"
                 >
-                    {mediaType === 'video' ? (
-                        <video src={previewUrl} className="w-full h-full object-cover pointer-events-none" muted playsInline autoPlay loop />
-                    ) : (
-                        <img src={previewUrl} className="w-full h-full object-cover pointer-events-none" alt="Story preview" />
-                    )}
+                    <StoryMediaPreview src={previewUrl} mediaType={mediaType} crop={crop} />
 
                     <TextOverlayLayer
                         overlays={overlays.filter((o) => o.id !== editingId)}
@@ -169,35 +169,31 @@ const StoryTextEditor = ({ previewUrl, mediaType, initialOverlays, onConfirm, on
                     />
 
                     {editingOverlay && (
+                        // Misma caja que el texto final: el "espejo" invisible fija el tamaño y el
+                        // textarea lo cubre, así las líneas se cortan exactamente igual al publicar.
                         <div
-                            className="absolute max-w-[85%]"
-                            style={{ left: `${editingOverlay.x}%`, top: `${editingOverlay.y}%`, transform: 'translate(-50%, -50%)' }}
+                            className={`absolute ${OVERLAY_TEXT_CLASS}`}
+                            style={{ ...getOverlayPositionStyle(editingOverlay), ...getOverlayTextStyle(editingOverlay) }}
                         >
+                            <div aria-hidden className="invisible">
+                                {(editingOverlay.text || PLACEHOLDER) + '​'}
+                            </div>
                             <textarea
-                                ref={editingRef}
                                 autoFocus
                                 value={editingOverlay.text}
+                                maxLength={MAX_TEXT_LENGTH}
                                 onChange={(e) => updateOverlay(editingOverlay.id, { text: e.target.value })}
                                 onFocus={(e) => e.currentTarget.select()}
                                 onBlur={commitEditing}
-                                rows={1}
-                                placeholder="Type something"
-                                className="block bg-transparent outline-none border-none resize-none overflow-hidden font-bold text-center placeholder-white/50"
-                                style={{
-                                    color: editingOverlay.color,
-                                    fontSize: `${editingOverlay.fontSize}cqw`,
-                                    lineHeight: 1.2,
-                                    textAlign: editingOverlay.align,
-                                    textShadow: '0 1px 3px rgba(0,0,0,0.6)',
-                                    width: '60vw',
-                                    maxWidth: '340px',
-                                }}
+                                placeholder={PLACEHOLDER}
+                                className="absolute inset-0 w-full h-full p-0 m-0 border-0 bg-transparent outline-none resize-none overflow-hidden whitespace-pre-wrap break-words placeholder-white/50"
+                                style={{ ...getOverlayTextStyle(editingOverlay), lineHeight: 'inherit', caretColor: editingOverlay.color }}
                             />
                         </div>
                     )}
                 </div>
 
-                {!editingId && (
+                {!editingId && overlays.length < MAX_TEXT_OVERLAYS && (
                     <button
                         type="button"
                         onClick={addText}
@@ -209,16 +205,46 @@ const StoryTextEditor = ({ previewUrl, mediaType, initialOverlays, onConfirm, on
                 )}
             </div>
 
-            {activeId && (
+            {activeId && activeOverlay && (
                 <div className="p-4 flex flex-col gap-3 border-t border-zinc-800">
+                    <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1" role="radiogroup" aria-label="Font">
+                        {STORY_FONTS.map((f) => (
+                            <button
+                                key={f.id}
+                                type="button"
+                                role="radio"
+                                aria-checked={activeOverlay.font === f.id}
+                                onMouseDown={keepFocus}
+                                onClick={() => updateOverlay(activeId, { font: f.id })}
+                                className={`shrink-0 flex flex-col items-center px-3 py-1.5 rounded-xl border transition-colors ${activeOverlay.font === f.id ? 'border-white bg-white/10 text-white' : 'border-zinc-700 text-zinc-300'}`}
+                            >
+                                <span className="text-lg leading-none" style={{ fontFamily: f.family }}>Aa</span>
+                                <span className="text-[10px] mt-1">{f.label}</span>
+                            </button>
+                        ))}
+                    </div>
+
                     <div className="flex items-center gap-3 px-2">
-                        <FontAwesomeIcon icon={faMinus} className="text-zinc-500 text-xs" />
+                        <button type="button" aria-label="Bold" aria-pressed={activeOverlay.bold} onMouseDown={keepFocus}
+                            onClick={() => updateOverlay(activeId, { bold: !activeOverlay.bold })} className={toggleButtonClass(activeOverlay.bold)}>
+                            <FontAwesomeIcon icon={faBold} />
+                        </button>
+                        <button type="button" aria-label="Italic" aria-pressed={activeOverlay.italic} onMouseDown={keepFocus}
+                            onClick={() => updateOverlay(activeId, { italic: !activeOverlay.italic })} className={toggleButtonClass(activeOverlay.italic)}>
+                            <FontAwesomeIcon icon={faItalic} />
+                        </button>
+                        <button type="button" aria-label="Underline" aria-pressed={activeOverlay.underline} onMouseDown={keepFocus}
+                            onClick={() => updateOverlay(activeId, { underline: !activeOverlay.underline })} className={toggleButtonClass(activeOverlay.underline)}>
+                            <FontAwesomeIcon icon={faUnderline} />
+                        </button>
+
+                        <FontAwesomeIcon icon={faMinus} className="text-zinc-500 text-xs ml-2" />
                         <input
                             type="range"
                             min={MIN_FONT_SIZE}
                             max={MAX_FONT_SIZE}
                             step={0.5}
-                            value={overlays.find((o) => o.id === activeId)?.fontSize ?? DEFAULT_FONT_SIZE}
+                            value={activeOverlay.fontSize}
                             onChange={(e) => updateOverlay(activeId, { fontSize: parseFloat(e.target.value) })}
                             className="flex-1 accent-blue-500"
                             aria-label="Text size"
@@ -231,9 +257,9 @@ const StoryTextEditor = ({ previewUrl, mediaType, initialOverlays, onConfirm, on
                             <button
                                 key={c}
                                 type="button"
+                                onMouseDown={keepFocus}
                                 onClick={() => updateOverlay(activeId, { color: c })}
-                                className={`w-7 h-7 rounded-full border-2 transition-transform ${overlays.find((o) => o.id === activeId)?.color === c ? 'border-blue-400 scale-110' : 'border-white/30'
-                                    }`}
+                                className={`w-7 h-7 rounded-full border-2 transition-transform ${activeOverlay.color === c ? 'border-blue-400 scale-110' : 'border-white/30'}`}
                                 style={{ backgroundColor: c }}
                                 aria-label={`Color ${c}`}
                             />
