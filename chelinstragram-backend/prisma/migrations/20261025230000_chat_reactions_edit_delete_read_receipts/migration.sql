@@ -28,3 +28,6 @@ ALTER TABLE "MessageReaction" ADD CONSTRAINT "MessageReaction_messageId_fkey" FO
 -- AddForeignKey
 ALTER TABLE "MessageReaction" ADD CONSTRAINT "MessageReaction_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
+
+-- La API REST de Supabase no debe ver esta tabla (ver 20261026000000_lock_down_public_schema)
+ALTER TABLE "MessageReaction" ENABLE ROW LEVEL SECURITY;
