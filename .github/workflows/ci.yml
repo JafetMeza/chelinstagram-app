@@ -90,8 +90,8 @@ jobs:
   audit:
     name: Auditoría de dependencias
     runs-on: ubuntu-latest
-    # Informativo: muestra vulnerabilidades sin bloquear el merge
-    continue-on-error: true
+    # Informativo: el job queda en verde para no bloquear PRs ni el deploy de Render
+    # ("After CI Checks Pass" exige todos los checks en verde); los hallazgos salen como warning.
     strategy:
       fail-fast: false
       matrix:
@@ -104,5 +104,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-      - run: pnpm audit --prod --audit-level high
+      - name: pnpm audit
         working-directory: ${{ matrix.app }}
+        run: |
+          if ! pnpm audit --prod --audit-level high; then
+            echo "::warning title=Dependencias (${{ matrix.app }})::pnpm audit encontró vulnerabilidades high/critical"
+          fi
