@@ -37,7 +37,7 @@ jobs:
       NODE_ENV: production
       DIRECT_URL: ${{ secrets.PROD_DIRECT_URL }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v4
         with:
           version: 11.0.8
