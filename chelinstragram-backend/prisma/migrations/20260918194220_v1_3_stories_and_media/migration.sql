@@ -12,7 +12,8 @@ CREATE TYPE "Role" AS ENUM ('USER', 'ROOT');
 CREATE TYPE "MediaType" AS ENUM ('IMAGE', 'VIDEO');
 
 -- AlterTable
-ALTER TABLE "Post" RENAME COLUMN "imageUrl" TO "mediaUrl";
+-- La columna física sigue llamándose "imageUrl" (schema.prisma: mediaUrl @map("imageUrl")).
+-- El RENAME original nunca se aplicó en producción; se quita para que el historial refleje la BD real.
 ALTER TABLE "Post" ADD COLUMN "mediaType" "MediaType" NOT NULL DEFAULT 'IMAGE';
 
 -- AlterTable
