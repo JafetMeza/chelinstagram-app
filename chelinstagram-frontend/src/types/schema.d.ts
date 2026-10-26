@@ -27,6 +27,8 @@ export interface UserProfile {
   isFollowing?: boolean;
   /** Only returned for the current user profile */
   readReceiptsEnabled?: boolean;
+  /** Only returned for the current user profile */
+  notifyOnlineEnabled?: boolean;
   _count?: {
     followers?: number;
     following?: number;
@@ -119,7 +121,9 @@ export interface MessagesPage {
 
 export interface UserSettings {
   /** Read receipts ("Visto"), disabled by default */
-  readReceiptsEnabled: boolean;
+  readReceiptsEnabled?: boolean;
+  /** Push when someone you chat with comes online, enabled by default */
+  notifyOnlineEnabled?: boolean;
 }
 
 export interface Conversation {

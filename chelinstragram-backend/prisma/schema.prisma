@@ -34,6 +34,8 @@ model User {
 
   // Chat
   readReceiptsEnabled Boolean           @default(false) // "Visto" opcional, desactivado por defecto
+  notifyOnlineEnabled Boolean  @default(true) // push "X está en línea"
+  lastSeenAt          DateTime? // última vez conectado (para no avisar en reconexiones)
   messageReactions    MessageReaction[]
 }
 

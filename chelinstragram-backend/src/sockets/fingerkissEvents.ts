@@ -10,6 +10,10 @@ import { isUserOnline, userRoom } from './presence';
 const FINGERKISS_PREFIX = 'fingerkiss:';
 const fingerkissRoom = (conversationId: string) => `${FINGERKISS_PREFIX}${conversationId}`;
 
+// Anti-spam de invitaciones: una por conversación y remitente cada 60 s
+const INVITE_COOLDOWN_MS = 60 * 1000;
+const lastInviteAt = new Map<string, number>();
+
 const isNormalized = (value: unknown): value is number =>
     typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1;
 
@@ -30,28 +34,39 @@ export const registerFingerkissEvents = (io: Server, socket: Socket, currentUser
     const isInRoom = (conversationId: unknown): conversationId is string =>
         typeof conversationId === 'string' && socket.rooms.has(fingerkissRoom(conversationId));
 
+    // Cada vez que alguien usa el Fingerkiss se invita a los demás: aviso dentro de la app si
+    // están conectados y push siempre (el service worker la omite si la app está visible).
+    const invitePartners = async (conversationId: string, partnerIds: string[]) => {
+        const key = `${conversationId}:${currentUserId}`;
+        const now = Date.now();
+        if (now - (lastInviteAt.get(key) ?? 0) < INVITE_COOLDOWN_MS) return;
+        lastInviteAt.set(key, now);
+
+        const from = await prisma.user.findUnique({
+            where: { id: currentUserId },
+            select: { id: true, username: true, displayName: true, avatarUrl: true }
+        });
+
+        for (const partnerId of partnerIds) {
+            if (isUserOnline(partnerId)) {
+                io.to(userRoom(partnerId)).emit('fingerkiss_invited', { conversationId, from });
+            }
+            await sendPushToUser(partnerId, {
+                title: `${from?.displayName || user.username} te invita a un Fingerkiss 💋`,
+                body: 'Pon tu dedo en la pantalla',
+                url: `/chat/${conversationId}/fingerkiss`,
+                tag: `fingerkiss-${conversationId}`,
+                skipIfVisible: true
+            });
+        }
+    };
+
     socket.on('fingerkiss_invite', async (data) => {
         const { conversationId } = data ?? {};
         try {
             const partnerIds = await getPartnerIds(conversationId);
             if (!partnerIds) return;
-
-            const from = await prisma.user.findUnique({
-                where: { id: currentUserId },
-                select: { id: true, username: true, displayName: true, avatarUrl: true }
-            });
-
-            for (const partnerId of partnerIds) {
-                if (isUserOnline(partnerId)) {
-                    io.to(userRoom(partnerId)).emit('fingerkiss_invited', { conversationId, from });
-                } else {
-                    await sendPushToUser(partnerId, {
-                        title: `${from?.displayName || user.username} te invita a un Fingerkiss 💋`,
-                        body: 'Pon tu dedo en la pantalla',
-                        url: `/chat/${conversationId}/fingerkiss`
-                    });
-                }
-            }
+            await invitePartners(conversationId, partnerIds);
         } catch (error) {
             console.error('Error en fingerkiss_invite:', error);
         }
@@ -91,6 +106,10 @@ export const registerFingerkissEvents = (io: Server, socket: Socket, currentUser
 
             socket.emit('fingerkiss_state', { conversationId, peers });
             socket.to(room).emit('fingerkiss_peer_joined', { conversationId, userId: currentUserId });
+
+            // Entró y está solo: invitamos a los que faltan
+            const missing = partnerIds.filter(id => !peers.includes(id));
+            if (missing.length > 0) await invitePartners(conversationId, missing);
         } catch (error) {
             console.error('Error en fingerkiss_join:', error);
         }
