@@ -14,7 +14,41 @@ export const chatSchemas = {
             id: { type: 'string' },
             content: { type: 'string' },
             createdAt: { type: 'string', format: 'date-time' },
-            senderId: { type: 'string' }
+            senderId: { type: 'string' },
+            conversationId: { type: 'string' },
+            sender: { $ref: '#/components/schemas/User' },
+            editedAt: { type: 'string', format: 'date-time', nullable: true },
+            deletedAt: { type: 'string', format: 'date-time', nullable: true, description: 'If set, content is empty' },
+            isRead: { type: 'boolean', description: 'Only present when both participants enabled read receipts' },
+            reactions: {
+                type: 'array',
+                items: { $ref: '#/components/schemas/MessageReaction' }
+            }
+        }
+    },
+    MessageReaction: {
+        type: 'object',
+        properties: {
+            userId: { type: 'string' },
+            type: { type: 'string', enum: ['heart', 'laugh', 'sad', 'angry', 'surprise'] }
+        }
+    },
+    MessagesPage: {
+        type: 'object',
+        properties: {
+            data: {
+                type: 'array',
+                items: { $ref: '#/components/schemas/Message' }
+            },
+            meta: {
+                type: 'object',
+                properties: {
+                    cursor: { type: 'string', nullable: true, description: 'Cursor sent in the request' },
+                    nextCursor: { type: 'string', nullable: true, description: 'Cursor to load older messages' },
+                    hasMore: { type: 'boolean' },
+                    readReceipts: { type: 'boolean', description: 'True when both participants enabled read receipts' }
+                }
+            }
         }
     },
     Conversation: {

@@ -1,14 +1,18 @@
 import { Server, Socket } from 'socket.io';
 import { prisma } from "../config/database";
 import { sendPushToUser } from '../controllers/notificationController';
+import { messageInclude, serializeMessage } from '../helper/chatHelper';
+import { addUserSocket, getOnlineUserIds, isUserOnline, removeUserSocket, userRoom } from './presence';
+import { registerMessageEvents } from './messageEvents';
+import { registerFingerkissEvents } from './fingerkissEvents';
 
-// userId -> socket ids abiertos (un usuario puede tener varias pestañas/dispositivos)
-const onlineUsers = new Map<string, Set<string>>();
 let ioInstance: Server | null = null; // 🟢 NEW: lets REST controllers (storyController) emit too
 
-// Cada socket se une a la room de su usuario para poder emitir a todos sus dispositivos
-const userRoom = (userId: string) => `user:${userId}`;
-const isUserOnline = (userId: string) => (onlineUsers.get(userId)?.size ?? 0) > 0;
+// Para que los controllers REST puedan emitir a todos los dispositivos de varios usuarios
+export const emitToUsers = (userIds: string[], event: string, payload: unknown) => {
+    if (!ioInstance || userIds.length === 0) return;
+    ioInstance.to(userIds.map(userRoom)).emit(event, payload);
+};
 
 export const handleSockets = (io: Server) => {
     ioInstance = io; // 🟢 NEW
@@ -25,12 +29,13 @@ export const handleSockets = (io: Server) => {
         console.log(`🟢 [Socket] ${user.username} conectado con ID: ${currentUserId}`);
 
         socket.join(userRoom(currentUserId));
-        const userSockets = onlineUsers.get(currentUserId) ?? new Set<string>();
-        userSockets.add(socket.id);
-        onlineUsers.set(currentUserId, userSockets);
+        addUserSocket(currentUserId, socket.id);
 
         io.emit('user_status_change', { userId: currentUserId, status: 'online' });
-        socket.emit('initial_presence', Array.from(onlineUsers.keys()));
+        socket.emit('initial_presence', getOnlineUserIds());
+
+        registerMessageEvents(io, socket, currentUserId);
+        registerFingerkissEvents(io, socket, currentUserId);
 
         socket.on('send_message', async (data) => {
             const { conversationId, content, tempId } = data ?? {};
@@ -44,7 +49,7 @@ export const handleSockets = (io: Server) => {
                 // Solo los participantes pueden escribir; los destinatarios salen de la conversación, no del cliente
                 const conversation = await prisma.conversation.findFirst({
                     where: { id: conversationId, participants: { some: { userId: currentUserId } } },
-                    select: { participants: { select: { userId: true } } }
+                    select: { participants: { select: { userId: true, user: { select: { readReceiptsEnabled: true } } } } }
                 });
 
                 if (!conversation) {
@@ -52,7 +57,7 @@ export const handleSockets = (io: Server) => {
                     return;
                 }
 
-                const [savedMessage] = await prisma.$transaction([
+                const [createdMessage] = await prisma.$transaction([
                     prisma.message.create({
                         data: {
                             content,
@@ -60,9 +65,7 @@ export const handleSockets = (io: Server) => {
                             senderId: currentUserId,
                             isRead: false
                         },
-                        include: {
-                            sender: { select: { id: true, username: true, avatarUrl: true } }
-                        }
+                        include: messageInclude
                     }),
                     // Mantiene el orden de la bandeja (ordenada por updatedAt)
                     prisma.conversation.update({
@@ -70,6 +73,9 @@ export const handleSockets = (io: Server) => {
                         data: { updatedAt: new Date() }
                     })
                 ]);
+
+                const readReceipts = conversation.participants.every(p => p.user.readReceiptsEnabled);
+                const savedMessage = serializeMessage(createdMessage, readReceipts);
 
                 const receiverIds = conversation.participants
                     .map(p => p.userId)
@@ -80,7 +86,7 @@ export const handleSockets = (io: Server) => {
                         io.to(userRoom(receiverId)).emit('receive_message', savedMessage);
                     } else {
                         await sendPushToUser(receiverId, {
-                            title: `Nuevo mensaje de ${savedMessage.sender.username}`,
+                            title: `Nuevo mensaje de ${createdMessage.sender.username}`,
                             body: content,
                             url: `/chat/${conversationId}`
                         });
@@ -115,12 +121,8 @@ export const handleSockets = (io: Server) => {
 
         socket.on('disconnect', () => {
             console.log(`🔴 [Socket] ${user.username} se ha desconectado.`);
-            const sockets = onlineUsers.get(currentUserId);
-            sockets?.delete(socket.id);
-
             // Solo está offline cuando se cierra su último dispositivo
-            if (!sockets || sockets.size === 0) {
-                onlineUsers.delete(currentUserId);
+            if (removeUserSocket(currentUserId, socket.id)) {
                 io.emit('user_status_change', { userId: currentUserId, status: 'offline' });
             }
         });

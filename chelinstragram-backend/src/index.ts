@@ -8,7 +8,7 @@ import { deleteConversation, getConversation, getMessages, sendMessage, startCon
 import multer from "multer";
 import { createPost, deletePost, getFeed, getUserPosts, updatePost } from "./controllers/feedController";
 import { addComment, getCommentsByPost, toggleLike } from "./controllers/interactionController";
-import { getProfile, getUserByUserName, searchUsers, updateProfile, toggleFollow, getFollowers, getFollowing } from "./controllers/userController";
+import { getProfile, getUserByUserName, searchUsers, updateProfile, toggleFollow, getFollowers, getFollowing, updateSettings } from "./controllers/userController";
 import { createStory, getStoriesFeed, viewStory, getStoryViewers, deleteStory } from './controllers/storyController';
 import { authSchemas } from "./schemas/auth.schema";
 import { userSchemas } from "./schemas/user.schema";
@@ -152,6 +152,15 @@ io.use((socket, next) => {
 
 // -------------------- API ROUTES -----------------------------------
 handleSockets(io);
+// Health check (Render y el workflow de deploy lo consultan tras cada despliegue)
+app.get('/api/health', (req, res) => {
+    res.json({
+        status: 'ok',
+        version: process.env.npm_package_version ?? 'unknown',
+        commit: process.env.RENDER_GIT_COMMIT ?? null // Render lo define en cada deploy
+    });
+});
+
 // Auth Route
 app.post('/api/auth/login', login);
 app.post('/api/auth/refresh', refresh);
@@ -178,6 +187,7 @@ app.get('/api/interactions/comments/:postId', authenticateToken, getCommentsByPo
 // Profile Routes
 app.get('/api/users/profile', authenticateToken, getProfile);
 app.patch('/api/users/profile', authenticateToken, upload.single('avatar'), updateProfile);
+app.patch('/api/users/settings', authenticateToken, updateSettings);
 app.post('/api/users/follow', authenticateToken, toggleFollow);
 
 // User Search Route

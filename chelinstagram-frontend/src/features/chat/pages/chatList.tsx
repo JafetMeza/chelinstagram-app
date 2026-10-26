@@ -55,6 +55,15 @@ const ChatList = () => {
             upsertConversationPreview(savedMessage);
         };
 
+        // Edición/borrado: solo actualiza el preview si es el último mensaje, sin reordenar
+        const handleMessageUpdated = (updatedMessage: Message) => {
+            setConversations(prev => prev.map(c =>
+                c.id === updatedMessage.conversationId && c.messages?.[0]?.id === updatedMessage.id
+                    ? { ...c, messages: [updatedMessage] }
+                    : c
+            ));
+        };
+
         // 🟢 LÓGICA DE TYPING EN LISTA DE CHATS
         const handleUserTyping = (payload: { conversationId: string; userId: string; }) => {
             // Marcamos como escribiendo esta conversación
@@ -78,6 +87,7 @@ const ChatList = () => {
 
         socket.on('receive_message', handleReceiveMessage);
         socket.on('message_sent', handleMessageSent);
+        socket.on('message_updated', handleMessageUpdated);
         socket.on('user_typing', handleUserTyping);
         socket.on('user_stop_typing', handleUserStopTyping);
 
@@ -86,6 +96,7 @@ const ChatList = () => {
         return () => {
             socket.off('receive_message', handleReceiveMessage);
             socket.off('message_sent', handleMessageSent);
+            socket.off('message_updated', handleMessageUpdated);
             socket.off('user_typing', handleUserTyping);
             socket.off('user_stop_typing', handleUserStopTyping);
             Object.values(timeouts).forEach(clearTimeout);
@@ -229,8 +240,8 @@ const ChatList = () => {
                                                 <span>escribiendo...</span>
                                             </p>
                                         ) : (
-                                            <p className="text-xs text-zinc-500 truncate leading-relaxed">
-                                                {lastMsg?.content || "Tap to start chatting..."}
+                                            <p className={`text-xs text-zinc-500 truncate leading-relaxed ${lastMsg?.deletedAt ? 'italic' : ''}`}>
+                                                {lastMsg?.deletedAt ? "Mensaje eliminado" : (lastMsg?.content || "Tap to start chatting...")}
                                             </p>
                                         )}
                                     </div>

@@ -1,0 +1,57 @@
+name: Deploy producción
+
+# Cada push a main (merge de release/hotfix):
+#   1. Corre el CI completo.
+#   2. Aplica las migraciones de Prisma en Supabase.
+# Render tiene Auto-Deploy en "After CI Checks Pass": espera a que TODOS los checks de este
+# commit (incluido el job de migraciones) pasen y entonces despliega el backend. Así el código
+# nuevo nunca arranca contra una BD sin migrar, y si algo falla Render no despliega.
+# No agregues aquí jobs que esperen al deploy de Render: Render los espera a ellos.
+# El frontend lo despliega Vercel con su integración de Git.
+#
+# Configuración (Settings → Environments → production):
+#   secrets.PROD_DIRECT_URL   Conexión directa/session pooler de Supabase (puerto 5432, NO el 6543 de pgbouncer)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  migrate:
+    name: Migraciones en producción
+    needs: ci
+    runs-on: ubuntu-latest
+    environment: production
+    defaults:
+      run:
+        working-directory: chelinstragram-backend
+    env:
+      NODE_ENV: production
+      DIRECT_URL: ${{ secrets.PROD_DIRECT_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.0.8
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: chelinstragram-backend/pnpm-lock.yaml
+      - name: Verificar secreto
+        run: |
+          if [ -z "$DIRECT_URL" ]; then
+            echo "::error::Falta el secret PROD_DIRECT_URL; no se puede migrar producción."
+            exit 1
+          fi
+      - run: pnpm install --frozen-lockfile
+      - run: npx prisma migrate status || true
+      - run: npx prisma migrate deploy

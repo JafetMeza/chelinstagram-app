@@ -1,4 +1,4 @@
-import { AuthResponse, CommentRequest, Conversation, LoginRequest, Message, Post, PostsUserDetailData, SearchUser, SendMessageRequest, Story, StoryGroup, StoryViewer, UpdatePostRequest, UserProfile } from "@/types/schema";
+import { AuthResponse, CommentRequest, Conversation, LoginRequest, Message, MessagesPage, Post, PostsUserDetailData, SearchUser, SendMessageRequest, Story, StoryGroup, StoryViewer, UpdatePostRequest, UserProfile, UserSettings } from "@/types/schema";
 import { ApiResponse, RequestType } from "./helpers/serviceConstants";
 import { fetchMethod } from "./helpers/fetchMethod";
 import { API_ROUTES } from "./helpers/urlConstants";
@@ -52,8 +52,13 @@ export const GetConversationsApi = async (): Promise<ApiResponse<Conversation[]>
 export const SendMessageApi = async (data: SendMessageRequest): Promise<ApiResponse<Message>> =>
     await fetchMethod<Message>(API_ROUTES.CHAT.MESSAGES, RequestType.POST, data);
 
-export const GetMessagesApi = async (conversationId: string): Promise<ApiResponse<Message[]>> =>
-    await fetchMethod<Message[]>(API_ROUTES.CHAT.CHAT_ROOM(conversationId), RequestType.GET);
+export const GetMessagesApi = async (conversationId: string, query?: string): Promise<ApiResponse<MessagesPage>> => {
+    let url = API_ROUTES.CHAT.CHAT_ROOM(conversationId);
+    if (query) {
+        url += `?${query}`;
+    }
+    return await fetchMethod<MessagesPage>(url, RequestType.GET);
+};
 
 export const StartConversationApi = async (recipientId: string): Promise<ApiResponse<Conversation>> =>
     await fetchMethod<Conversation>(API_ROUTES.CHAT.START, RequestType.POST, { recipientId });
@@ -79,6 +84,9 @@ export const GetFollowingApi = async (username: string): Promise<ApiResponse<Sea
 
 export const UpdateProfileApi = async (data: FormData): Promise<ApiResponse<void>> =>
     await fetchMethod<void>(API_ROUTES.USERS.PROFILE, RequestType.PATCH, data);
+
+export const UpdateSettingsApi = async (data: UserSettings): Promise<ApiResponse<UserSettings>> =>
+    await fetchMethod<UserSettings>(API_ROUTES.USERS.SETTINGS, RequestType.PATCH, data);
 
 export const ToggleFollowApi = async (followingId: string): Promise<ApiResponse<void>> =>
     await fetchMethod<void>(API_ROUTES.USERS.FOLLOW, RequestType.POST, { followingId });

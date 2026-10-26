@@ -1,0 +1,112 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [develop]
+  workflow_call:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: 22
+  PNPM_VERSION: 11.0.8
+
+jobs:
+  backend:
+    name: Backend (typecheck, build, migraciones)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: chelinstragram-backend
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: chelinstagram
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # prisma.config.ts usa DATABASE_URL_DEV fuera de producción
+      DATABASE_URL_DEV: postgresql://ci:ci@localhost:5432/chelinstagram?schema=public
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/chelinstagram?schema=public
+      JWT_SECRET: ci-only-secret
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: chelinstragram-backend/pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+      - run: npx prisma validate
+      - run: npx tsc --noEmit
+      - run: pnpm build
+
+      # Las migraciones deben aplicar limpias y dejar la BD igual que schema.prisma.
+      # Si cambias el schema sin generar migración, este paso falla.
+      - name: Aplicar migraciones en Postgres efímero
+        run: npx prisma migrate deploy
+      - name: Verificar que schema.prisma y migraciones coinciden
+        run: npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code
+
+  frontend:
+    name: Frontend (build, lint)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: chelinstagram-frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: chelinstagram-frontend/pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      # Hay errores previos de react-hooks/set-state-in-effect; se reporta pero no bloquea
+      # hasta limpiarlos. Quita continue-on-error cuando el lint quede en verde.
+      - run: pnpm lint
+        continue-on-error: true
+
+  audit:
+    name: Auditoría de dependencias
+    runs-on: ubuntu-latest
+    # Informativo: el job queda en verde para no bloquear PRs ni el deploy de Render
+    # ("After CI Checks Pass" exige todos los checks en verde); los hallazgos salen como warning.
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [chelinstragram-backend, chelinstagram-frontend]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: pnpm audit
+        working-directory: ${{ matrix.app }}
+        run: |
+          if ! pnpm audit --prod --audit-level high; then
+            echo "::warning title=Dependencias (${{ matrix.app }})::pnpm audit encontró vulnerabilidades high/critical"
+          fi

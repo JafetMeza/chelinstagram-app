@@ -22,8 +22,14 @@ async function main() {
   await prisma.pushDevice.deleteMany();
   await prisma.user.deleteMany();
 
-  const password = await bcrypt.hash('!Q2w3e4r5', 10);
-  const grace_password = await bcrypt.hash('05-17ramenBelgium', 10);
+  // Las contraseñas reales nunca van en el código (el repo es público): se leen del entorno
+  const requireEnv = (name: string) => {
+    const value = process.env[name];
+    if (!value) throw new Error(`Falta la variable de entorno ${name} para el seed`);
+    return value;
+  };
+  const password = await bcrypt.hash(requireEnv('SEED_DEFAULT_PASSWORD'), 10);
+  const grace_password = await bcrypt.hash(requireEnv('SEED_GRACE_PASSWORD'), 10);
 
   // We only create data here. 
   // On the internet server, the DB will be empty anyway.

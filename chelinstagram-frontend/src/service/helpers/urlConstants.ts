@@ -46,6 +46,7 @@ export const API_ROUTES = {
         FOLLOWERS: (username: string) => `${UrlHost}/users/${username}/followers`,
         FOLLOWING: (username: string) => `${UrlHost}/users/${username}/following`,
         FOLLOW: `${UrlHost}/users/follow`,
+        SETTINGS: `${UrlHost}/users/settings`,
     },
 
     // Notifications
