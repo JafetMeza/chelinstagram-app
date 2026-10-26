@@ -9,6 +9,11 @@ updates:
     groups:
       minor-and-patch:
         update-types: [minor, patch]
+    # Las versiones mayores rompen APIs (Vite, React Router, TypeScript...): se actualizan a mano.
+    # Las vulnerabilidades las sigue reportando el job de auditoría del CI.
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: npm
     directory: /chelinstagram-frontend
@@ -19,6 +24,11 @@ updates:
     groups:
       minor-and-patch:
         update-types: [minor, patch]
+    # Las versiones mayores rompen APIs (Vite, React Router, TypeScript...): se actualizan a mano.
+    # Las vulnerabilidades las sigue reportando el job de auditoría del CI.
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: /
