@@ -1,0 +1,94 @@
+name: Deploy producción
+
+# Cada push a main (merge de release/hotfix):
+#   1. Corre el CI completo.
+#   2. Aplica las migraciones de Prisma en Supabase.
+#   3. Dispara el deploy del backend en Render y espera a que /api/health responda la nueva versión.
+# El frontend lo despliega Vercel con su integración de Git; si main solo recibe PRs con CI verde
+# (branch protection), nunca llega a Vercel código que no compila.
+#
+# Configuración (Settings → Secrets and variables → Actions):
+#   secrets.PROD_DIRECT_URL          Conexión directa/session pooler de Supabase (puerto 5432, NO el 6543 de pgbouncer)
+#   secrets.RENDER_DEPLOY_HOOK_URL   Render → servicio → Settings → Deploy Hook (y Auto-Deploy en "No")
+#   vars.BACKEND_URL                 URL pública del backend en Render, sin "/" final
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  migrate:
+    name: Migraciones en producción
+    needs: ci
+    runs-on: ubuntu-latest
+    environment: production
+    defaults:
+      run:
+        working-directory: chelinstragram-backend
+    env:
+      NODE_ENV: production
+      DIRECT_URL: ${{ secrets.PROD_DIRECT_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.0.8
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: chelinstragram-backend/pnpm-lock.yaml
+      - name: Verificar secreto
+        run: |
+          if [ -z "$DIRECT_URL" ]; then
+            echo "::error::Falta el secret PROD_DIRECT_URL; no se puede migrar producción."
+            exit 1
+          fi
+      - run: pnpm install --frozen-lockfile
+      - run: npx prisma migrate status || true
+      - run: npx prisma migrate deploy
+
+  deploy-backend:
+    name: Deploy backend (Render)
+    needs: migrate
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+      BACKEND_URL: ${{ vars.BACKEND_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Disparar deploy en Render
+        run: |
+          if [ -z "$RENDER_DEPLOY_HOOK_URL" ]; then
+            echo "::warning::Sin RENDER_DEPLOY_HOOK_URL: Render desplegará por su auto-deploy (sin esperar a las migraciones)."
+            exit 0
+          fi
+          curl -fsS -X POST "$RENDER_DEPLOY_HOOK_URL" > /dev/null
+          echo "Deploy solicitado a Render."
+      - name: Esperar a que el backend sirva este commit
+        if: env.BACKEND_URL != ''
+        run: |
+          # Render expone el commit desplegado (RENDER_GIT_COMMIT); si no, se compara la versión
+          version=$(node -p "require('./chelinstragram-backend/package.json').version")
+          echo "Esperando commit $GITHUB_SHA (o versión $version) en $BACKEND_URL/api/health"
+          for i in $(seq 1 60); do
+            health=$(curl -fsS --max-time 10 "$BACKEND_URL/api/health" || true)
+            live=$(echo "$health" | node -pe "const h=JSON.parse(require('fs').readFileSync(0));h.commit??('v'+h.version)" 2>/dev/null || true)
+            if [ "$live" = "$GITHUB_SHA" ] || [ "$live" = "v$version" ]; then
+              echo "✅ Backend en línea: $live"
+              exit 0
+            fi
+            echo "[$i/60] desplegado ahora: ${live:-sin respuesta}"
+            sleep 15
+          done
+          echo "::error::El backend no sirvió el commit nuevo en 15 minutos."
+          exit 1

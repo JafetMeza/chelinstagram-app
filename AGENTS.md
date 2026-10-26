@@ -36,12 +36,19 @@ pnpm install         # postinstall ejecuta prisma generate
 pnpm dev             # tsx watch src/index.ts -> http://localhost:3001 (Swagger en /api-docs)
 pnpm build           # tsc -> dist/
 npx tsc --noEmit     # verificación de tipos
-pnpm db:migrate      # prisma migrate dev (las migraciones están en .gitignore)
+pnpm db:migrate      # prisma migrate dev (genera la migración; commitéala junto con el schema)
 pnpm db:seed
 docker compose up -d # Postgres local
 ```
 
 No hay suite de tests automatizados. Como mínimo verifica **`npx tsc --noEmit` en backend** y **`pnpm build` en frontend** antes de abrir un PR.
+
+## CI/CD
+
+- **CI** (`.github/workflows/ci.yml`, en PRs a `main`/`develop` y push a `develop`): backend (`prisma validate`, `tsc --noEmit`, build, aplica las migraciones en un Postgres efímero y falla si `schema.prisma` no coincide con ellas), frontend (build; lint informativo) y `pnpm audit` informativo.
+- **Deploy** (`.github/workflows/deploy.yml`, en push a `main`): CI → `prisma migrate deploy` en Supabase → deploy hook de Render → espera `/api/health`. Vercel despliega el frontend con su integración de Git.
+- **Migraciones versionadas** en `chelinstragram-backend/prisma/migrations/`. Cada cambio a `schema.prisma` necesita su migración (`pnpm db:migrate --name ...`) o el CI falla. Las migraciones deben ser compatibles con el backend anterior (aditivas), porque se aplican antes de que Render cambie de versión.
+- **Supabase**: la app no usa la API REST de Supabase. El schema `public` tiene RLS activo sin políticas y sin privilegios para `anon`/`authenticated`; no lo abras. Las tablas nuevas que crea Prisma heredan el revoke, pero activa RLS en ellas en su migración (`ALTER TABLE ... ENABLE ROW LEVEL SECURITY`).
 
 ## Variables de entorno
 
