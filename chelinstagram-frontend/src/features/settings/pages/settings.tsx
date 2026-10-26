@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAppSelector } from "@/redux/hooks";
 import { Url } from "@/service/helpers/urlConstants";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faChevronLeft, faBell, faTriangleExclamation, faRotateRight, faCheckDouble } from '@fortawesome/free-solid-svg-icons';
+import { faChevronLeft, faBell, faTriangleExclamation, faRotateRight, faCheckDouble, faCircle } from '@fortawesome/free-solid-svg-icons';
 import { GetMyProfileApi, UpdateSettingsApi } from "@/service/api.service";
 import { ResponseStatus } from "@/service/helpers/serviceConstants";
 
@@ -69,14 +69,19 @@ const Settings = () => {
     // --- PRIVACIDAD: "Visto" (desactivado por defecto) ---
     const [readReceiptsEnabled, setReadReceiptsEnabled] = useState(false);
     const [isReadReceiptsLoading, setIsReadReceiptsLoading] = useState(true);
+    // Aviso "X está en línea" (activado por defecto)
+    const [notifyOnlineEnabled, setNotifyOnlineEnabled] = useState(true);
+    const [isNotifyOnlineLoading, setIsNotifyOnlineLoading] = useState(true);
 
     useEffect(() => {
         const loadPrivacySettings = async () => {
             const result = await GetMyProfileApi();
             if (result.status === ResponseStatus.OK) {
                 setReadReceiptsEnabled(!!result.data?.readReceiptsEnabled);
+                setNotifyOnlineEnabled(result.data?.notifyOnlineEnabled ?? true);
             }
             setIsReadReceiptsLoading(false);
+            setIsNotifyOnlineLoading(false);
         };
         loadPrivacySettings();
     }, []);
@@ -92,6 +97,19 @@ const Settings = () => {
             setReadReceiptsEnabled(!nextValue);
         }
         setIsReadReceiptsLoading(false);
+    };
+
+    const toggleNotifyOnline = async () => {
+        const nextValue = !notifyOnlineEnabled;
+        setIsNotifyOnlineLoading(true);
+        setNotifyOnlineEnabled(nextValue);
+
+        const result = await UpdateSettingsApi({ notifyOnlineEnabled: nextValue });
+        if (result.status !== ResponseStatus.OK) {
+            console.error("Error guardando el aviso de conexión:", result.error);
+            setNotifyOnlineEnabled(!nextValue);
+        }
+        setIsNotifyOnlineLoading(false);
     };
 
     const toggleNotifications = async () => {
@@ -208,6 +226,32 @@ const Settings = () => {
                                 </div>
                             </div>
                         )}
+
+                        <div className="p-4 flex items-center justify-between gap-4 border-t dark:border-zinc-800">
+                            <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 shrink-0 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-500">
+                                    <FontAwesomeIcon icon={faCircle} className="text-xs" />
+                                </div>
+                                <div className="flex flex-col">
+                                    <span className="font-bold text-sm">Avisarme cuando se conecten</span>
+                                    <span className="text-xs text-zinc-500">
+                                        Recibe una notificación cuando alguien con quien chateas entra a la app.
+                                    </span>
+                                </div>
+                            </div>
+
+                            <button
+                                onClick={toggleNotifyOnline}
+                                disabled={isNotifyOnlineLoading}
+                                aria-pressed={notifyOnlineEnabled}
+                                aria-label="Avisarme cuando se conecten"
+                                className={`relative shrink-0 w-12 h-6 rounded-full transition-colors duration-300 ease-in-out ${notifyOnlineEnabled ? 'bg-green-500' : 'bg-zinc-300 dark:bg-zinc-700'
+                                    } ${isNotifyOnlineLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            >
+                                <div className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform duration-300 ease-in-out ${notifyOnlineEnabled ? 'transform translate-x-6' : ''
+                                    }`} />
+                            </button>
+                        </div>
                     </div>
                 </section>
 

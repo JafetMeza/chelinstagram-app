@@ -47,6 +47,7 @@ export const getProfile = async (req: AuthRequest, res: Response) => {
                 bio: true,
                 avatarUrl: true,
                 readReceiptsEnabled: true,
+                notifyOnlineEnabled: true,
                 _count: {
                     select: { followers: true, following: true, posts: true }
                 }
@@ -85,17 +86,24 @@ export const getProfile = async (req: AuthRequest, res: Response) => {
  */
 export const updateSettings = async (req: AuthRequest, res: Response) => {
     const { userId } = req.user!;
-    const { readReceiptsEnabled } = req.body ?? {};
+    const { readReceiptsEnabled, notifyOnlineEnabled } = req.body ?? {};
 
-    if (typeof readReceiptsEnabled !== 'boolean') {
-        return res.status(400).json({ error: 'readReceiptsEnabled must be a boolean' });
+    // Actualización parcial: cada ajuste es opcional, pero al menos uno debe venir y ser booleano
+    const data: { readReceiptsEnabled?: boolean; notifyOnlineEnabled?: boolean } = {};
+    for (const [key, value] of Object.entries({ readReceiptsEnabled, notifyOnlineEnabled })) {
+        if (value === undefined) continue;
+        if (typeof value !== 'boolean') return res.status(400).json({ error: `${key} must be a boolean` });
+        data[key as keyof typeof data] = value;
+    }
+    if (Object.keys(data).length === 0) {
+        return res.status(400).json({ error: 'No settings to update' });
     }
 
     try {
         const settings = await prisma.user.update({
             where: { id: userId },
-            data: { readReceiptsEnabled },
-            select: { readReceiptsEnabled: true }
+            data,
+            select: { readReceiptsEnabled: true, notifyOnlineEnabled: true }
         });
         res.json(settings);
     } catch (error) {

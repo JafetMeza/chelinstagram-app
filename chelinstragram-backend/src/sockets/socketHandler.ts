@@ -5,6 +5,7 @@ import { messageInclude, serializeMessage } from '../helper/chatHelper';
 import { addUserSocket, getOnlineUserIds, isUserOnline, removeUserSocket, userRoom } from './presence';
 import { registerMessageEvents } from './messageEvents';
 import { registerFingerkissEvents } from './fingerkissEvents';
+import { markLastSeen, notifyUserCameOnline, startPresenceHeartbeat } from './presenceNotifications';
 
 let ioInstance: Server | null = null; // 🟢 NEW: lets REST controllers (storyController) emit too
 
@@ -16,6 +17,7 @@ export const emitToUsers = (userIds: string[], event: string, payload: unknown) 
 
 export const handleSockets = (io: Server) => {
     ioInstance = io; // 🟢 NEW
+    startPresenceHeartbeat();
 
     io.on('connection', (socket: Socket) => {
         const user = socket.data.user;
@@ -29,7 +31,9 @@ export const handleSockets = (io: Server) => {
         console.log(`🟢 [Socket] ${user.username} conectado con ID: ${currentUserId}`);
 
         socket.join(userRoom(currentUserId));
-        addUserSocket(currentUserId, socket.id);
+        if (addUserSocket(currentUserId, socket.id)) {
+            notifyUserCameOnline(currentUserId).catch(err => console.error('Online notification error:', err));
+        }
 
         io.emit('user_status_change', { userId: currentUserId, status: 'online' });
         socket.emit('initial_presence', getOnlineUserIds());
@@ -124,6 +128,7 @@ export const handleSockets = (io: Server) => {
             // Solo está offline cuando se cierra su último dispositivo
             if (removeUserSocket(currentUserId, socket.id)) {
                 io.emit('user_status_change', { userId: currentUserId, status: 'offline' });
+                markLastSeen([currentUserId]).catch(err => console.error('lastSeenAt error:', err));
             }
         });
     });

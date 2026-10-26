@@ -8,10 +8,13 @@ export const isUserOnline = (userId: string) => (onlineUsers.get(userId)?.size ?
 
 export const getOnlineUserIds = () => Array.from(onlineUsers.keys());
 
+// Devuelve true si es el primer socket del usuario (acaba de conectarse)
 export const addUserSocket = (userId: string, socketId: string) => {
     const sockets = onlineUsers.get(userId) ?? new Set<string>();
+    const wasOffline = sockets.size === 0;
     sockets.add(socketId);
     onlineUsers.set(userId, sockets);
+    return wasOffline;
 };
 
 // Devuelve true si era el último socket del usuario (ahora está offline)

@@ -18,12 +18,19 @@ self.addEventListener('push', (event: PushEvent) => {
             icon: '/android-chrome-192x192.png',
             badge: '/favicon-16x16.png',
             vibrate: [200, 100, 200],
-            data: { url: data.url || '/' }
+            data: { url: data.url || '/' },
+            // Mismo tag = reemplaza la anterior (p. ej. varias invitaciones seguidas)
+            ...(data.tag ? { tag: data.tag, renotify: true } : {})
         };
 
-        event.waitUntil(
-            self.registration.showNotification(data.title || 'Chelinstagram', options)
-        );
+        event.waitUntil((async () => {
+            // skipIfVisible: si la app está abierta y a la vista, el aviso ya aparece dentro de ella
+            if (data.skipIfVisible) {
+                const windowClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+                if (windowClients.some(c => c.visibilityState === 'visible')) return;
+            }
+            await self.registration.showNotification(data.title || 'Chelinstagram', options);
+        })());
     }
 });
 
