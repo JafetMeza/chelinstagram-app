@@ -30,12 +30,15 @@ jobs:
     needs: ci
     runs-on: ubuntu-latest
     environment: production
+    # Una migración normal tarda segundos; si se cuelga (p. ej. vía pgbouncer) que falle rápido
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: chelinstragram-backend
     env:
       NODE_ENV: production
-      DIRECT_URL: ${{ secrets.PROD_DIRECT_URL }}
+      # DIRECT_URL (lo que lee prisma.config.ts) se deriva de este secret en "Verificar secreto"
+      PROD_DIRECT_URL: ${{ secrets.PROD_DIRECT_URL }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -48,10 +51,19 @@ jobs:
           cache-dependency-path: chelinstragram-backend/pnpm-lock.yaml
       - name: Verificar secreto
         run: |
-          if [ -z "$DIRECT_URL" ]; then
+          if [ -z "$PROD_DIRECT_URL" ]; then
             echo "::error::Falta el secret PROD_DIRECT_URL; no se puede migrar producción."
             exit 1
           fi
+          # Prisma Migrate no funciona a través de pgbouncer (puerto 6543, modo transacción): se cuelga.
+          # El pooler de Supabase atiende el modo sesión en el mismo host y puerto 5432.
+          url="$PROD_DIRECT_URL"
+          if echo "$url" | grep -qE ":6543/|pgbouncer=true"; then
+            echo "::warning::PROD_DIRECT_URL apunta a pgbouncer (6543); se usa el modo sesión (5432). Corrige el secret."
+            url=$(echo "$url" | sed -E "s#:6543/#:5432/#; s#[?&]pgbouncer=true##")
+            echo "::add-mask::$url"
+          fi
+          echo "DIRECT_URL=$url" >> "$GITHUB_ENV"
       - run: pnpm install --frozen-lockfile
       - run: npx prisma migrate status || true
       - run: npx prisma migrate deploy
