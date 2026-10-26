@@ -1,2 +1,7 @@
 allowBuilds:
   ffmpeg-static: true
+  prisma: true
+  "@prisma/engines": true
+  bcrypt: true
+  esbuild: true
+  "@scarf/scarf": false
