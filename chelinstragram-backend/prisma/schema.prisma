@@ -94,6 +94,7 @@ model Story {
   mediaUrl    String    
   mediaType   MediaType   @default(IMAGE) 
   duration    Int         @default(15) 
+  textOverlays Json?      // textos del editor (ver src/config/storyText.ts); null en historias viejas
   expiresAt   DateTime  
   createdAt   DateTime    @default(now())
   

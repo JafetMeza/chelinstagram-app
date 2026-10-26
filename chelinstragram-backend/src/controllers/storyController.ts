@@ -3,6 +3,7 @@ import { prisma } from '../config/database';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { uploadImage, VideoProcessingOptions } from '../helper/imageHelper';
 import { notifyNewStory } from '../sockets/socketHandler';
+import { parseTextOverlays } from '../config/storyText';
 
 const DEFAULT_IMAGE_DURATION = 15; // seconds, matches your Story.duration default
 const MAX_STORY_DURATION = 30;     // seconds — arbitrary cap for trimmed videos, adjust freely
@@ -61,7 +62,7 @@ const resolveLifetimeMinutes = (raw: unknown): number => {
  */
 export const createStory = async (req: AuthRequest, res: Response) => {
     const { userId } = req.user!;
-    const { startTime, endTime, isMuted, cropX, cropY, cropSize, lifetimeMinutes } = req.body;
+    const { startTime, endTime, isMuted, cropX, cropY, cropSize, lifetimeMinutes, textOverlays } = req.body;
 
     try {
         const file = req.file;
@@ -102,6 +103,7 @@ export const createStory = async (req: AuthRequest, res: Response) => {
                 mediaUrl,
                 mediaType,
                 duration,
+                textOverlays: parseTextOverlays(textOverlays),
                 expiresAt: new Date(Date.now() + resolvedLifetime * 60 * 1000), // 🟢 CHANGED
                 authorId: userId,
             },
@@ -176,6 +178,7 @@ export const getStoriesFeed = async (req: AuthRequest, res: Response) => {
                 mediaUrl: story.mediaUrl,
                 mediaType: story.mediaType,
                 duration: story.duration,
+                textOverlays: story.textOverlays ?? [],
                 expiresAt: story.expiresAt,
                 createdAt: story.createdAt,
                 isViewedByUser,
