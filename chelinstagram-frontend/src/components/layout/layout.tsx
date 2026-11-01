@@ -11,12 +11,14 @@ import useTheme from "../hooks/useTheme";
 import { Link } from 'react-router-dom';
 import { ROUTES } from "@/routes";
 import StoryTray from '@/features/stories/components/storyTray'; // 🟢 NEW
+import { useScrollResetOnRouteChange } from '../hooks/useScroll';
 
 const Layout = () => {
     const { onLogout } = useContext(AuthenticationContext);
     const dispatch = useAppDispatch();
     const isDark = useTheme();
     const location = useLocation();
+    useScrollResetOnRouteChange();
 
     const isSettingsRoute = location.pathname.includes('settings');
     const isHomeRoute = location.pathname === ROUTES.HOME; // 🟢 NEW

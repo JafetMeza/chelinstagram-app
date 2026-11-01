@@ -1,4 +1,21 @@
-import { useCallback } from 'react';
+import { useCallback, useLayoutEffect } from 'react';
+import { matchPath, useLocation } from 'react-router-dom';
+import { ROUTES } from '@/routes';
+
+/**
+ * Reinicia el scroll de #root en cada cambio de ruta.
+ * Excepción: la cuadrícula de perfil (`/profile/:username`) restaura su propia
+ * posición al volver desde un post, así que no se reinicia aquí.
+ */
+export const useScrollResetOnRouteChange = () => {
+    const { pathname } = useLocation();
+
+    useLayoutEffect(() => {
+        if (matchPath({ path: ROUTES.PROFILE_PATH, end: true }, pathname)) return;
+        const root = document.getElementById("root");
+        if (root) root.scrollTop = 0;
+    }, [pathname]);
+};
 
 export const useScroll = () => {
     // Buscamos el elemento que tú confirmaste que tiene el scroll
