@@ -5,6 +5,7 @@ import { MAX_MESSAGES_PAGE_SIZE } from '../config/chat';
 import {
     areReadReceiptsEnabled,
     getConversationParticipantIds,
+    isValidReplyTarget,
     markConversationRead,
     messageInclude,
     serializeMessage
@@ -218,7 +219,7 @@ export const getConversation = async (req: AuthRequest, res: Response) => {
  */
 export const sendMessage = async (req: AuthRequest, res: Response) => {
     const { userId } = req.user!;
-    const { conversationId, content } = req.body;
+    const { conversationId, content, replyToId } = req.body;
 
     if (typeof content !== 'string' || !content.trim()) {
         return res.status(400).json({ error: 'Message content is required' });
@@ -229,6 +230,10 @@ export const sendMessage = async (req: AuthRequest, res: Response) => {
             return res.status(403).json({ error: 'You are not a participant of this conversation' });
         }
 
+        if (replyToId != null && (typeof replyToId !== 'string' || !(await isValidReplyTarget(replyToId, conversationId)))) {
+            return res.status(400).json({ error: 'El mensaje citado no está en esta conversación' });
+        }
+
         // 1. Create the message and update the Conversation's updatedAt in one transaction
         const [newMessage] = await prisma.$transaction([
             prisma.message.create({
@@ -236,11 +241,13 @@ export const sendMessage = async (req: AuthRequest, res: Response) => {
                     content,
                     senderId: userId,
                     conversationId,
+                    replyToId: replyToId || null,
                 },
                 include: {
                     sender: {
                         select: { username: true, displayName: true }
-                    }
+                    },
+                    replyTo: messageInclude.replyTo
                 }
             }),
             // 2. This is the key: Update the parent conversation timestamp
