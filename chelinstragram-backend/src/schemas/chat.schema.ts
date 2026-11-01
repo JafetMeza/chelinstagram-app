@@ -20,6 +20,19 @@ export const chatSchemas = {
             editedAt: { type: 'string', format: 'date-time', nullable: true },
             deletedAt: { type: 'string', format: 'date-time', nullable: true, description: 'If set, content is empty' },
             isRead: { type: 'boolean', description: 'Only present when both participants enabled read receipts' },
+            replyToId: { type: 'string', nullable: true, description: 'ID del mensaje al que responde (misma conversación)' },
+            replyTo: {
+                type: 'object',
+                nullable: true,
+                description: 'Mensaje citado. content vacío si fue eliminado',
+                properties: {
+                    id: { type: 'string' },
+                    content: { type: 'string' },
+                    deletedAt: { type: 'string', format: 'date-time', nullable: true },
+                    senderId: { type: 'string' },
+                    sender: { $ref: '#/components/schemas/User' }
+                }
+            },
             reactions: {
                 type: 'array',
                 items: { $ref: '#/components/schemas/MessageReaction' }
@@ -73,7 +86,8 @@ export const chatSchemas = {
         required: ['conversationId', 'content'],
         properties: {
             conversationId: { type: 'string' },
-            content: { type: 'string', example: 'Hey Graciela!' }
+            content: { type: 'string', example: 'Hey Graciela!' },
+            replyToId: { type: 'string', nullable: true, description: 'Mensaje de la misma conversación al que se responde' }
         }
     }
 };

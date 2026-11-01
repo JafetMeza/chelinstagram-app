@@ -1,7 +1,7 @@
 import { Server, Socket } from 'socket.io';
 import { prisma } from "../config/database";
 import { sendPushToUser } from '../controllers/notificationController';
-import { messageInclude, serializeMessage } from '../helper/chatHelper';
+import { isValidReplyTarget, messageInclude, serializeMessage } from '../helper/chatHelper';
 import { addUserSocket, getOnlineUserIds, isUserOnline, removeUserSocket, userRoom } from './presence';
 import { registerMessageEvents } from './messageEvents';
 import { registerFingerkissEvents } from './fingerkissEvents';
@@ -42,11 +42,15 @@ export const handleSockets = (io: Server) => {
         registerFingerkissEvents(io, socket, currentUserId);
 
         socket.on('send_message', async (data) => {
-            const { conversationId, content, tempId } = data ?? {};
+            const { conversationId, content, tempId, replyToId } = data ?? {};
 
             try {
                 if (typeof conversationId !== 'string' || typeof content !== 'string' || !content.trim()) {
                     socket.emit('message_error', { tempId, error: 'Mensaje inválido' });
+                    return;
+                }
+                if (replyToId != null && typeof replyToId !== 'string') {
+                    socket.emit('message_error', { tempId, error: 'Mensaje citado inválido' });
                     return;
                 }
 
@@ -61,13 +65,19 @@ export const handleSockets = (io: Server) => {
                     return;
                 }
 
+                if (replyToId && !(await isValidReplyTarget(replyToId, conversationId))) {
+                    socket.emit('message_error', { tempId, error: 'El mensaje citado no está en esta conversación' });
+                    return;
+                }
+
                 const [createdMessage] = await prisma.$transaction([
                     prisma.message.create({
                         data: {
                             content,
                             conversationId,
                             senderId: currentUserId,
-                            isRead: false
+                            isRead: false,
+                            replyToId: replyToId || null
                         },
                         include: messageInclude
                     }),
