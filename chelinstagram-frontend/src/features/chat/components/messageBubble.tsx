@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faBan, faExclamationCircle } from '@fortawesome/free-solid-svg-icons';
 import { Message } from "@/types/schema";
@@ -15,11 +15,13 @@ interface MessageBubbleProps {
     isMine: boolean;
     currentUserId?: string;
     showSeen: boolean;
+    isSelected: boolean;
     onOpenActions: (message: LocalMessage) => void;
     onDoubleTap: (message: LocalMessage) => void;
 }
 
-const MessageBubble = ({ message, isMine, currentUserId, showSeen, onOpenActions, onDoubleTap }: MessageBubbleProps) => {
+const MessageBubble = ({ message, isMine, currentUserId, showSeen, isSelected, onOpenActions, onDoubleTap }: MessageBubbleProps) => {
+    const [pressing, setPressing] = useState(false);
     const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const pressStart = useRef({ x: 0, y: 0 });
     const longPressed = useRef(false);
@@ -34,6 +36,7 @@ const MessageBubble = ({ message, isMine, currentUserId, showSeen, onOpenActions
     const clearPress = () => {
         if (pressTimer.current) clearTimeout(pressTimer.current);
         pressTimer.current = null;
+        setPressing(false);
     };
 
     const handlePointerDown = (e: React.PointerEvent) => {
@@ -41,6 +44,7 @@ const MessageBubble = ({ message, isMine, currentUserId, showSeen, onOpenActions
         longPressed.current = false;
         pressStart.current = { x: e.clientX, y: e.clientY };
         clearPress();
+        setPressing(true);
         pressTimer.current = setTimeout(() => {
             longPressed.current = true;
             navigator.vibrate?.(10);
@@ -88,6 +92,12 @@ const MessageBubble = ({ message, isMine, currentUserId, showSeen, onOpenActions
                         : 'bg-zinc-100 dark:bg-zinc-800 text-black dark:text-white rounded-bl-sm'
                     }`}
             >
+                {/* Capa de selección: aparece al mantener presionado y se queda mientras el menú está abierto */}
+                <span
+                    aria-hidden="true"
+                    className={`pointer-events-none absolute inset-0 rounded-2xl bg-black/10 dark:bg-white/15 transition-opacity duration-150 ${pressing || isSelected ? 'opacity-100' : 'opacity-0'}`}
+                />
+
                 {isDeleted ? (
                     <p className="text-sm italic flex items-center gap-2">
                         <FontAwesomeIcon icon={faBan} className="text-xs" />

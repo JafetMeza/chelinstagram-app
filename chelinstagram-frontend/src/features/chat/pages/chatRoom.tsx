@@ -554,6 +554,7 @@ const ChatRoom = () => {
                                 isMine={isMine}
                                 currentUserId={currentUser?.id}
                                 showSeen={readReceipts && index === lastOwnIndex && !!msg.isRead && !msg.deletedAt}
+                                isSelected={!!actionTarget?.id && actionTarget.id === msg.id}
                                 onOpenActions={setActionTarget}
                                 onDoubleTap={(target) => handleReact(target, 'heart')}
                             />
