@@ -9,9 +9,9 @@ export type LocalMessage = Message & { tempId?: string; failed?: boolean; };
 const LONG_PRESS_MS = 450;
 const DOUBLE_TAP_MS = 300;
 const MOVE_TOLERANCE_PX = 10;
-// Deslizar a la derecha: desde SWIPE_REPLY_PX activa la réplica; el recorrido se limita a SWIPE_MAX_PX
-const SWIPE_REPLY_PX = 16;
-const SWIPE_MAX_PX = 24;
+// Deslizar a la derecha: el movimiento visual es ligero (SWIPE_VISUAL_MAX_PX); la réplica se activa por distancia real (SWIPE_REPLY_PX)
+const SWIPE_REPLY_PX = 48;
+const SWIPE_VISUAL_MAX_PX = 8;
 
 interface MessageBubbleProps {
     message: LocalMessage;
@@ -31,6 +31,7 @@ const MessageBubble = ({ message, isMine, currentUserId, showSeen, isSelected, o
     const pressStart = useRef({ x: 0, y: 0 });
     const longPressed = useRef(false);
     const swiping = useRef(false);
+    const swipeDistance = useRef(0);
     const lastTap = useRef(0);
 
     const isDeleted = !!message.deletedAt;
@@ -60,6 +61,7 @@ const MessageBubble = ({ message, isMine, currentUserId, showSeen, isSelected, o
     };
 
     const cancelPress = () => {
+        swipeDistance.current = 0;
         clearPress();
         swiping.current = false;
         setSwipeX(0);
@@ -82,7 +84,8 @@ const MessageBubble = ({ message, isMine, currentUserId, showSeen, isSelected, o
             clearPress();
         }
         if (swiping.current) {
-            setSwipeX(Math.min(Math.max(dx, 0), SWIPE_MAX_PX));
+            swipeDistance.current = Math.max(dx, 0);
+            setSwipeX(Math.min(swipeDistance.current, SWIPE_VISUAL_MAX_PX));
             return;
         }
         if (absX > MOVE_TOLERANCE_PX || absY > MOVE_TOLERANCE_PX) clearPress();
@@ -91,7 +94,8 @@ const MessageBubble = ({ message, isMine, currentUserId, showSeen, isSelected, o
     const handlePointerUp = () => {
         clearPress();
         if (swiping.current) {
-            const shouldReply = swipeX >= SWIPE_REPLY_PX;
+            const shouldReply = swipeDistance.current >= SWIPE_REPLY_PX;
+            swipeDistance.current = 0;
             swiping.current = false;
             setSwipeX(0);
             if (shouldReply) {
@@ -138,7 +142,7 @@ const MessageBubble = ({ message, isMine, currentUserId, showSeen, isSelected, o
                     <span
                         aria-hidden="true"
                         className="pointer-events-none absolute top-1/2 -translate-y-1/2 -left-4 text-zinc-400"
-                        style={{ opacity: Math.min(swipeX / SWIPE_REPLY_PX, 1) }}
+                        style={{ opacity: Math.min(swipeX / SWIPE_VISUAL_MAX_PX, 1) }}
                     >
                         <FontAwesomeIcon icon={faReply} />
                     </span>
