@@ -7,6 +7,9 @@ import { faImage, faChevronLeft, faMapMarkerAlt, faCircleNotch, faVideo, faVolum
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from "@/routes";
 import { processToSquare } from "../lib/imageProcessing";
+import { takePendingPostMedia } from "../lib/pendingPostMedia";
+import ActionSheet from '@/components/ui/actionSheet';
+import { MEDIA_SOURCE_OPTIONS, useMediaPicker } from '@/components/ui/useMediaPicker';
 import { compressAndUpload, getAvatarSrc } from "@/helpers/imageUtils";
 import VideoEditor, { CropData } from '@/components/ui/videoEditor';
 
@@ -23,7 +26,7 @@ const CreateChelfie = () => {
     const [isMuted, setIsMuted] = useState<boolean>(true);
     const [caption, setCaption] = useState("");
     const [location, setLocation] = useState("");
-    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [sourceSheetOpen, setSourceSheetOpen] = useState(false);
 
     // 🟢 NUEVO: Referencia para controlar el video del preview
     const previewVideoRef = useRef<HTMLVideoElement>(null);
@@ -47,10 +50,7 @@ const CreateChelfie = () => {
         }
     }, [isEditingVideo, isVideo, trimStart]);
 
-    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const selectedFile = e.target.files?.[0];
-        if (!selectedFile) return;
-
+    const processSelectedFile = async (selectedFile: File) => {
         try {
             if (preview) {
                 URL.revokeObjectURL(preview);
@@ -85,6 +85,17 @@ const CreateChelfie = () => {
             alert("Oops! Something went wrong while preparing your media.");
         }
     };
+
+    const { pick, input: fileInput } = useMediaPicker(processSelectedFile);
+
+    // Llega desde la cámara rápida: se procesa al entrar a la pantalla
+    useEffect(() => {
+        const pending = takePendingPostMedia();
+        if (!pending) return;
+        const processPending = () => { void processSelectedFile(pending); };
+        processPending();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const handleVideoTrimmed = (start: number, end: number, mutedState: boolean, crop: CropData) => {
         setTrimStart(start);
@@ -171,17 +182,17 @@ const CreateChelfie = () => {
                 {!preview ? (
                     <div className="flex flex-col items-center justify-center h-64 mt-20">
                         <div
-                            onClick={() => fileInputRef.current?.click()}
+                            onClick={() => setSourceSheetOpen(true)}
                             className="w-24 h-24 rounded-full bg-gray-100 dark:bg-zinc-900 flex items-center justify-center cursor-pointer hover:scale-105 transition-transform"
                         >
                             <FontAwesomeIcon icon={faImage} className="text-3xl text-gray-500" />
                         </div>
                         <p className="mt-4 font-semibold text-center">Pick a beautiful moment <br /> (Photo or Video)</p>
                         <button
-                            onClick={() => fileInputRef.current?.click()}
+                            onClick={() => setSourceSheetOpen(true)}
                             className="mt-6 bg-blue-500 text-white px-6 py-2 rounded-lg font-bold"
                         >
-                            Select from Gallery
+                            Elegir origen
                         </button>
                     </div>
                 ) : (
@@ -261,13 +272,19 @@ const CreateChelfie = () => {
                 )}
             </div>
 
-            <input
-                type="file"
-                ref={fileInputRef}
-                className="hidden"
-                accept="image/*,video/mp4,video/quicktime,video/webm"
-                onChange={handleFileChange}
-            />
+            {fileInput}
+
+            {sourceSheetOpen && (
+                <ActionSheet
+                    title="¿De dónde quieres tu chelfie?"
+                    options={MEDIA_SOURCE_OPTIONS}
+                    onSelect={(source) => {
+                        setSourceSheetOpen(false);
+                        pick(source);
+                    }}
+                    onClose={() => setSourceSheetOpen(false)}
+                />
+            )}
         </div>
     );
 };

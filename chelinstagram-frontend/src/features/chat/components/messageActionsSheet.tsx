@@ -1,5 +1,5 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCopy, faPen, faTrash } from '@fortawesome/free-solid-svg-icons';
+import { faCopy, faPen, faReply, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { REACTIONS, ReactionType } from "../lib/reactions";
 import { LocalMessage } from "./messageBubble";
 
@@ -8,13 +8,14 @@ interface MessageActionsSheetProps {
     isMine: boolean;
     currentUserId?: string;
     onReact: (type: ReactionType) => void;
+    onReply: () => void;
     onEdit: () => void;
     onDelete: () => void;
     onClose: () => void;
 }
 
 // Hoja de acciones de un mensaje: barra de reacciones + copiar/editar/eliminar
-const MessageActionsSheet = ({ message, isMine, currentUserId, onReact, onEdit, onDelete, onClose }: MessageActionsSheetProps) => {
+const MessageActionsSheet = ({ message, isMine, currentUserId, onReact, onReply, onEdit, onDelete, onClose }: MessageActionsSheetProps) => {
     const myReaction = message.reactions?.find(r => r.userId === currentUserId)?.type;
 
     const handleCopy = async () => {
@@ -57,6 +58,10 @@ const MessageActionsSheet = ({ message, isMine, currentUserId, onReact, onEdit, 
 
                 {/* Acciones */}
                 <div className="bg-white dark:bg-zinc-900 rounded-2xl overflow-hidden border dark:border-zinc-800 text-black dark:text-white">
+                    <button type="button" onClick={onReply} className="w-full flex items-center justify-between px-4 py-3 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800">
+                        Responder
+                        <FontAwesomeIcon icon={faReply} className="text-zinc-400" />
+                    </button>
                     <button type="button" onClick={handleCopy} className="w-full flex items-center justify-between px-4 py-3 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800">
                         Copiar
                         <FontAwesomeIcon icon={faCopy} className="text-zinc-400" />

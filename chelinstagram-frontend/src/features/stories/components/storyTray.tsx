@@ -1,6 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlus, faXmark } from '@fortawesome/free-solid-svg-icons';
+import { faCamera, faCircleDot, faImage, faPlus, faXmark } from '@fortawesome/free-solid-svg-icons';
+import { ROUTES } from '@/routes';
+import ActionSheet from '@/components/ui/actionSheet';
+import { MEDIA_SOURCE_OPTIONS, useMediaPicker } from '@/components/ui/useMediaPicker';
+import { setPendingPostMedia } from '@/features/createChelfies/lib/pendingPostMedia';
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { GetApi, PostApi } from "@/redux/middleware/httpMethod.mid";
 import { CreateStoryApi, GetStoriesApi } from "@/service/api.service";
@@ -30,7 +35,10 @@ const StoryTray = () => {
 
     const [groups, setGroups] = useState<StoryGroup[]>([]);
     const [viewingGroup, setViewingGroup] = useState<StoryGroup | null>(null);
-    const fileInputRef = useRef<HTMLInputElement>(null);
+    const navigate = useNavigate();
+    const [storySourceOpen, setStorySourceOpen] = useState(false);
+    // Foto de la cámara rápida: espera a que el usuario elija story o post
+    const [quickCapture, setQuickCapture] = useState<File | null>(null);
 
     const [createStep, setCreateStep] = useState<CreateStep>('idle');
     const [pendingFile, setPendingFile] = useState<File | null>(null);
@@ -78,11 +86,7 @@ const StoryTray = () => {
     const ownGroup = groups.find(g => g.author?.username === user?.username);
     const otherGroups = groups.filter(g => g.author?.username !== user?.username);
 
-    const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        e.target.value = '';
-        if (!file) return;
-
+    const processSelectedFile = async (file: File) => {
         const isVideo = file.type.startsWith('video/');
         setPendingType(isVideo ? 'video' : 'image');
         setTextOverlays([]);
@@ -107,6 +111,22 @@ const StoryTray = () => {
             console.error('Error processing story photo', err);
             alert('Something went wrong preparing your story.');
         }
+    };
+
+    const { pick, input: fileInput } = useMediaPicker(processSelectedFile);
+    const { pick: pickQuick, input: quickInput } = useMediaPicker(setQuickCapture);
+
+    const handleQuickPublishAsStory = () => {
+        const file = quickCapture;
+        setQuickCapture(null);
+        if (file) void processSelectedFile(file);
+    };
+
+    const handleQuickPublishAsPost = () => {
+        if (!quickCapture) return;
+        setPendingPostMedia(quickCapture);
+        setQuickCapture(null);
+        navigate(ROUTES.CREATE);
     };
 
     const handleVideoTrimmed = (startTime: number, endTime: number, isMuted: boolean, crop: CropData) => {
@@ -150,6 +170,19 @@ const StoryTray = () => {
     return (
         <>
             <div className="flex gap-4 overflow-x-auto pb-3 px-3 sm:px-0 [&::-webkit-scrollbar]:hidden">
+                {/* Cámara rápida: foto y destino (story o post) */}
+                <div className="flex flex-col items-center gap-1 shrink-0">
+                    <button
+                        type="button"
+                        onClick={() => pickQuick('photo')}
+                        className="w-16 h-16 rounded-full bg-gray-100 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 flex items-center justify-center hover:scale-105 transition-transform"
+                        aria-label="Cámara rápida"
+                    >
+                        <FontAwesomeIcon icon={faCamera} className="text-xl text-gray-600 dark:text-zinc-300" />
+                    </button>
+                    <span className="text-[11px] text-black dark:text-white max-w-16 truncate">Cámara</span>
+                </div>
+
                 <div className="flex flex-col items-center gap-1 shrink-0">
                     <div className="relative w-16 h-16">
                         <button
@@ -172,7 +205,7 @@ const StoryTray = () => {
 
                         <button
                             type="button"
-                            onClick={() => fileInputRef.current?.click()}
+                            onClick={() => setStorySourceOpen(true)}
                             className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-blue-500 border-2 border-white dark:border-black flex items-center justify-center hover:scale-110 transition-transform"
                             aria-label="Add story"
                         >
@@ -208,13 +241,32 @@ const StoryTray = () => {
                 ))}
             </div>
 
-            <input
-                type="file"
-                ref={fileInputRef}
-                className="hidden"
-                accept="image/*,video/mp4,video/quicktime,video/webm"
-                onChange={handleFileSelected}
-            />
+            {fileInput}
+            {quickInput}
+
+            {storySourceOpen && (
+                <ActionSheet
+                    title="Nuevo estado"
+                    options={MEDIA_SOURCE_OPTIONS}
+                    onSelect={(source) => {
+                        setStorySourceOpen(false);
+                        pick(source);
+                    }}
+                    onClose={() => setStorySourceOpen(false)}
+                />
+            )}
+
+            {quickCapture && (
+                <ActionSheet
+                    title="¿Publicar como story o como post?"
+                    options={[
+                        { value: 'story', label: 'Story', icon: faCircleDot },
+                        { value: 'post', label: 'Post (Chelfie)', icon: faImage },
+                    ]}
+                    onSelect={(destination) => destination === 'story' ? handleQuickPublishAsStory() : handleQuickPublishAsPost()}
+                    onClose={() => setQuickCapture(null)}
+                />
+            )}
 
             {createStep === 'trimming' && pendingPreview && (
                 <div className="fixed inset-0 z-50 bg-black flex flex-col">

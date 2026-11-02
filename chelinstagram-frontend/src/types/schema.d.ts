@@ -99,6 +99,17 @@ export interface Message {
   /** Only present when both participants enabled read receipts */
   isRead?: boolean;
   reactions?: MessageReaction[];
+  /** ID del mensaje al que responde (misma conversación) */
+  replyToId?: string | null;
+  /** Mensaje citado. content vacío si fue eliminado */
+  replyTo?: {
+    id?: string;
+    content?: string;
+    /** @format date-time */
+    deletedAt?: string | null;
+    senderId?: string;
+    sender?: User;
+  } | null;
 }
 
 export interface MessageReaction {

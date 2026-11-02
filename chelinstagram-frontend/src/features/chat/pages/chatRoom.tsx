@@ -5,7 +5,7 @@ import { GetConversationsApi, GetMessagesApi } from "@/service/api.service";
 import { ResponseStatus } from "@/service/helpers/serviceConstants";
 import type { User } from "@/types/schema";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faChevronLeft, faPaperPlane, faInfoCircle, faPen, faXmark, faCheck } from '@fortawesome/free-solid-svg-icons';
+import { faChevronLeft, faPaperPlane, faInfoCircle, faPen, faReply, faXmark, faCheck } from '@fortawesome/free-solid-svg-icons';
 import { getAvatarSrc } from "@/helpers/imageUtils";
 import { ROUTES } from "@/routes";
 import { useSocket } from '@/components/context/socketContext';
@@ -63,6 +63,7 @@ const ChatRoom = () => {
     const [readReceipts, setReadReceipts] = useState(false);
     const [actionTarget, setActionTarget] = useState<LocalMessage | null>(null);
     const [editing, setEditing] = useState<LocalMessage | null>(null);
+    const [replyTo, setReplyTo] = useState<LocalMessage | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<LocalMessage | null>(null);
     // Copia del mensaje antes de un cambio optimista, para revertir si el servidor falla
     const pendingActionsRef = useRef<Record<string, LocalMessage>>({});
@@ -358,6 +359,14 @@ const ChatRoom = () => {
         });
     };
 
+    // La réplica solo aplica a la conversación en la que se inició
+    const activeReply = replyTo?.conversationId === conversationId ? replyTo : null;
+
+    const startReply = (target: LocalMessage) => {
+        setReplyTo(target);
+        textareaRef.current?.focus();
+    };
+
     const cancelEdit = () => {
         setEditing(null);
         setText('');
@@ -391,9 +400,11 @@ const ChatRoom = () => {
         socket.emit('stop_typing', { conversationId, receiverId: partner.id });
 
         const contentCopy = text;
+        const replyTarget = activeReply;
 
-        // Limpiamos el input y restauramos el tamaño
+        // Limpiamos el input, la réplica pendiente y restauramos el tamaño
         setText("");
+        setReplyTo(null);
         if (textareaRef.current) {
             textareaRef.current.style.height = 'auto';
         }
@@ -404,6 +415,7 @@ const ChatRoom = () => {
             conversationId: conversationId,
             content: contentCopy,
             tempId,
+            replyToId: replyTarget?.id,
         });
 
         const tempMessage: LocalMessage = {
@@ -413,7 +425,15 @@ const ChatRoom = () => {
             conversationId: conversationId,
             senderId: currentUser?.id ?? "",
             createdAt: new Date().toISOString(),
-            reactions: []
+            reactions: [],
+            replyToId: replyTarget?.id ?? null,
+            replyTo: replyTarget ? {
+                id: replyTarget.id,
+                content: replyTarget.content,
+                deletedAt: null,
+                senderId: replyTarget.senderId,
+                sender: replyTarget.sender,
+            } : null
         };
 
         setMessages(prev => [...prev, tempMessage]);
@@ -429,6 +449,10 @@ const ChatRoom = () => {
         if (e.key === 'Escape' && editing) {
             e.preventDefault();
             cancelEdit();
+        }
+        if (e.key === 'Escape' && activeReply) {
+            e.preventDefault();
+            setReplyTo(null);
         }
     };
 
@@ -554,8 +578,10 @@ const ChatRoom = () => {
                                 isMine={isMine}
                                 currentUserId={currentUser?.id}
                                 showSeen={readReceipts && index === lastOwnIndex && !!msg.isRead && !msg.deletedAt}
+                                isSelected={!!actionTarget?.id && actionTarget.id === msg.id}
                                 onOpenActions={setActionTarget}
                                 onDoubleTap={(target) => handleReact(target, 'heart')}
+                                onReply={startReply}
                             />
                         </React.Fragment>
                     );
@@ -564,6 +590,20 @@ const ChatRoom = () => {
             </div>
 
             <div className="shrink-0 p-3 pb-20 lg:pb-4 border-t dark:border-zinc-800 bg-white dark:bg-black">
+                {activeReply && !editing && (
+                    <div className="flex items-center justify-between px-2 pb-2 text-xs">
+                        <span className="flex items-center gap-2 text-blue-500 font-bold min-w-0">
+                            <FontAwesomeIcon icon={faReply} />
+                            <span className="truncate">
+                                Respondiendo a {activeReply.senderId === currentUser?.id ? 'ti mismo' : (partner?.displayName || partner?.username)}:{' '}
+                                <span className="font-normal text-zinc-500">{activeReply.content}</span>
+                            </span>
+                        </span>
+                        <button type="button" onClick={() => setReplyTo(null)} className="p-1 text-zinc-400 hover:text-black dark:hover:text-white">
+                            <FontAwesomeIcon icon={faXmark} />
+                        </button>
+                    </div>
+                )}
                 {editing && (
                     <div className="flex items-center justify-between px-2 pb-2 text-xs">
                         <span className="flex items-center gap-2 text-blue-500 font-bold min-w-0">
@@ -607,6 +647,10 @@ const ChatRoom = () => {
                     isMine={actionTarget.senderId === currentUser?.id}
                     currentUserId={currentUser?.id}
                     onReact={(type) => handleReact(actionTarget, type)}
+                    onReply={() => {
+                        startReply(actionTarget);
+                        setActionTarget(null);
+                    }}
                     onEdit={() => startEdit(actionTarget)}
                     onDelete={() => {
                         setDeleteTarget(actionTarget);

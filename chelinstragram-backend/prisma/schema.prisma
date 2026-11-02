@@ -178,7 +178,13 @@ model Message {
 
   reactions      MessageReaction[]
 
+  // Réplica: mensaje al que responde (misma conversación). Si se borra el original, se pierde la cita.
+  replyToId      String?
+  replyTo        Message?      @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies        Message[]     @relation("MessageReplies")
+
   @@index([conversationId, createdAt])
+  @@index([replyToId])
 }
 
 model MessageReaction {

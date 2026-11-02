@@ -1,6 +1,6 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faBan, faExclamationCircle } from '@fortawesome/free-solid-svg-icons';
+import { faBan, faExclamationCircle, faReply } from '@fortawesome/free-solid-svg-icons';
 import { Message } from "@/types/schema";
 import { groupReactions } from "../lib/reactions";
 
@@ -9,20 +9,28 @@ export type LocalMessage = Message & { tempId?: string; failed?: boolean; };
 const LONG_PRESS_MS = 450;
 const DOUBLE_TAP_MS = 300;
 const MOVE_TOLERANCE_PX = 10;
+// Deslizar a la derecha: desde SWIPE_REPLY_PX activa la réplica; el recorrido se limita a SWIPE_MAX_PX
+const SWIPE_REPLY_PX = 60;
+const SWIPE_MAX_PX = 80;
 
 interface MessageBubbleProps {
     message: LocalMessage;
     isMine: boolean;
     currentUserId?: string;
     showSeen: boolean;
+    isSelected: boolean;
     onOpenActions: (message: LocalMessage) => void;
     onDoubleTap: (message: LocalMessage) => void;
+    onReply: (message: LocalMessage) => void;
 }
 
-const MessageBubble = ({ message, isMine, currentUserId, showSeen, onOpenActions, onDoubleTap }: MessageBubbleProps) => {
+const MessageBubble = ({ message, isMine, currentUserId, showSeen, isSelected, onOpenActions, onDoubleTap, onReply }: MessageBubbleProps) => {
+    const [pressing, setPressing] = useState(false);
+    const [swipeX, setSwipeX] = useState(0);
     const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const pressStart = useRef({ x: 0, y: 0 });
     const longPressed = useRef(false);
+    const swiping = useRef(false);
     const lastTap = useRef(0);
 
     const isDeleted = !!message.deletedAt;
@@ -34,13 +42,16 @@ const MessageBubble = ({ message, isMine, currentUserId, showSeen, onOpenActions
     const clearPress = () => {
         if (pressTimer.current) clearTimeout(pressTimer.current);
         pressTimer.current = null;
+        setPressing(false);
     };
 
     const handlePointerDown = (e: React.PointerEvent) => {
         if (!isInteractive) return;
         longPressed.current = false;
+        swiping.current = false;
         pressStart.current = { x: e.clientX, y: e.clientY };
         clearPress();
+        setPressing(true);
         pressTimer.current = setTimeout(() => {
             longPressed.current = true;
             navigator.vibrate?.(10);
@@ -48,14 +59,47 @@ const MessageBubble = ({ message, isMine, currentUserId, showSeen, onOpenActions
         }, LONG_PRESS_MS);
     };
 
+    const cancelPress = () => {
+        clearPress();
+        swiping.current = false;
+        setSwipeX(0);
+    };
+
     const handlePointerMove = (e: React.PointerEvent) => {
-        const dx = Math.abs(e.clientX - pressStart.current.x);
-        const dy = Math.abs(e.clientY - pressStart.current.y);
-        if (dx > MOVE_TOLERANCE_PX || dy > MOVE_TOLERANCE_PX) clearPress();
+        const dx = e.clientX - pressStart.current.x;
+        const dy = e.clientY - pressStart.current.y;
+        const absX = Math.abs(dx);
+        const absY = Math.abs(dy);
+
+        // Movimiento vertical: es un scroll del chat, no un gesto de la burbuja
+        if (!swiping.current && absY > MOVE_TOLERANCE_PX && absY > absX) {
+            cancelPress();
+            return;
+        }
+        // Arrastre horizontal hacia la derecha: gesto de réplica
+        if (!swiping.current && dx > MOVE_TOLERANCE_PX && absX > absY && isInteractive) {
+            swiping.current = true;
+            clearPress();
+        }
+        if (swiping.current) {
+            setSwipeX(Math.min(Math.max(dx, 0), SWIPE_MAX_PX));
+            return;
+        }
+        if (absX > MOVE_TOLERANCE_PX || absY > MOVE_TOLERANCE_PX) clearPress();
     };
 
     const handlePointerUp = () => {
         clearPress();
+        if (swiping.current) {
+            const shouldReply = swipeX >= SWIPE_REPLY_PX;
+            swiping.current = false;
+            setSwipeX(0);
+            if (shouldReply) {
+                navigator.vibrate?.(10);
+                onReply(message);
+            }
+            return;
+        }
         if (!isInteractive || longPressed.current) return;
 
         const now = Date.now();
@@ -78,16 +122,45 @@ const MessageBubble = ({ message, isMine, currentUserId, showSeen, onOpenActions
                 onPointerDown={handlePointerDown}
                 onPointerMove={handlePointerMove}
                 onPointerUp={handlePointerUp}
-                onPointerCancel={clearPress}
-                onPointerLeave={clearPress}
+                onPointerCancel={cancelPress}
+                onPointerLeave={cancelPress}
                 onContextMenu={handleContextMenu}
-                className={`relative max-w-[75%] px-4 py-2 rounded-2xl select-none [-webkit-touch-callout:none] ${isDeleted
+                style={{ transform: `translateX(${swipeX}px)`, touchAction: 'pan-y' }}
+                className={`relative max-w-[75%] px-4 py-2 rounded-2xl select-none [-webkit-touch-callout:none] transition-transform ${swipeX === 0 ? 'duration-200' : 'duration-0'} ${isDeleted
                     ? 'bg-transparent border border-zinc-200 dark:border-zinc-800 text-zinc-400'
                     : isMine
                         ? 'bg-blue-500 text-white rounded-br-sm'
                         : 'bg-zinc-100 dark:bg-zinc-800 text-black dark:text-white rounded-bl-sm'
                     }`}
             >
+                {/* Indicador de réplica: aparece a la izquierda conforme se desliza */}
+                {swipeX > 0 && (
+                    <span
+                        aria-hidden="true"
+                        className="pointer-events-none absolute top-1/2 -translate-y-1/2 -left-10 text-zinc-400"
+                        style={{ opacity: Math.min(swipeX / SWIPE_REPLY_PX, 1) }}
+                    >
+                        <FontAwesomeIcon icon={faReply} />
+                    </span>
+                )}
+
+                {/* Capa de selección: aparece al mantener presionado y se queda mientras el menú está abierto */}
+                <span
+                    aria-hidden="true"
+                    className={`pointer-events-none absolute inset-0 rounded-2xl bg-black/10 dark:bg-white/15 transition-opacity duration-150 ${pressing || isSelected ? 'opacity-100' : 'opacity-0'}`}
+                />
+
+                {message.replyTo && !isDeleted && (
+                    <div className={`mb-1 rounded-lg border-l-4 px-2 py-1 text-xs ${isMine ? 'bg-white/15 border-white/70' : 'bg-black/5 dark:bg-white/10 border-blue-500'}`}>
+                        <p className="font-bold truncate">
+                            {message.replyTo.senderId === currentUserId ? 'Tú' : (message.replyTo.sender?.displayName || message.replyTo.sender?.username || '')}
+                        </p>
+                        <p className="truncate opacity-80">
+                            {message.replyTo.deletedAt ? 'Mensaje eliminado' : message.replyTo.content}
+                        </p>
+                    </div>
+                )}
+
                 {isDeleted ? (
                     <p className="text-sm italic flex items-center gap-2">
                         <FontAwesomeIcon icon={faBan} className="text-xs" />
