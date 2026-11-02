@@ -518,7 +518,7 @@ const ChatRoom = () => {
                 </div>
             </div>
 
-            <div ref={containerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div ref={containerRef} onScroll={handleScroll} className="flex-1 overflow-x-hidden overflow-y-auto p-4 space-y-4">
                 <div ref={topSentinelRef} className="h-1" />
 
                 {isInitialLoading && messages.length === 0 && <MessagesSkeleton />}
