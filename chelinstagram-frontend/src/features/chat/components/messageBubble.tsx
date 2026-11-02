@@ -48,6 +48,8 @@ const MessageBubble = ({ message, isMine, currentUserId, showSeen, isSelected, o
 
     const handlePointerDown = (e: React.PointerEvent) => {
         if (!isInteractive) return;
+        // Captura el puntero: el gesto sigue aunque el mouse salga de la burbuja (mensajes angostos)
+        e.currentTarget.setPointerCapture(e.pointerId);
         longPressed.current = false;
         swiping.current = false;
         pressStart.current = { x: e.clientX, y: e.clientY };
@@ -127,7 +129,6 @@ const MessageBubble = ({ message, isMine, currentUserId, showSeen, isSelected, o
                 onPointerMove={handlePointerMove}
                 onPointerUp={handlePointerUp}
                 onPointerCancel={cancelPress}
-                onPointerLeave={cancelPress}
                 onContextMenu={handleContextMenu}
                 style={{ transform: `translateX(${swipeX}px)`, touchAction: 'pan-y' }}
                 className={`relative max-w-[75%] px-4 py-2 rounded-2xl select-none [-webkit-touch-callout:none] transition-transform ${swipeX === 0 ? 'duration-200' : 'duration-0'} ${isDeleted
