@@ -49,7 +49,11 @@ const MessageBubble = ({ message, isMine, currentUserId, showSeen, isSelected, o
     const handlePointerDown = (e: React.PointerEvent) => {
         if (!isInteractive) return;
         // Captura el puntero: el gesto sigue aunque el mouse salga de la burbuja (mensajes angostos)
-        e.currentTarget.setPointerCapture(e.pointerId);
+        try {
+            e.currentTarget.setPointerCapture(e.pointerId);
+        } catch {
+            // Puntero no activo: el gesto sigue sin captura
+        }
         longPressed.current = false;
         swiping.current = false;
         pressStart.current = { x: e.clientX, y: e.clientY };
@@ -70,6 +74,11 @@ const MessageBubble = ({ message, isMine, currentUserId, showSeen, isSelected, o
     };
 
     const handlePointerMove = (e: React.PointerEvent) => {
+        // Solo cuenta como gesto si el botón sigue presionado; el hover nunca mueve la burbuja
+        if (e.buttons !== 1) {
+            if (swiping.current) cancelPress();
+            return;
+        }
         const dx = e.clientX - pressStart.current.x;
         const dy = e.clientY - pressStart.current.y;
         const absX = Math.abs(dx);
@@ -129,6 +138,7 @@ const MessageBubble = ({ message, isMine, currentUserId, showSeen, isSelected, o
                 onPointerMove={handlePointerMove}
                 onPointerUp={handlePointerUp}
                 onPointerCancel={cancelPress}
+                onLostPointerCapture={cancelPress}
                 onContextMenu={handleContextMenu}
                 style={{ transform: `translateX(${swipeX}px)`, touchAction: 'pan-y' }}
                 className={`relative max-w-[75%] px-4 py-2 rounded-2xl select-none [-webkit-touch-callout:none] transition-transform ${swipeX === 0 ? 'duration-200' : 'duration-0'} ${isDeleted
