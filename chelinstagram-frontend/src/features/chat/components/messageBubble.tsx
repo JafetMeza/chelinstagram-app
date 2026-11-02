@@ -10,8 +10,8 @@ const LONG_PRESS_MS = 450;
 const DOUBLE_TAP_MS = 300;
 const MOVE_TOLERANCE_PX = 10;
 // Deslizar a la derecha: desde SWIPE_REPLY_PX activa la réplica; el recorrido se limita a SWIPE_MAX_PX
-const SWIPE_REPLY_PX = 60;
-const SWIPE_MAX_PX = 80;
+const SWIPE_REPLY_PX = 16;
+const SWIPE_MAX_PX = 24;
 
 interface MessageBubbleProps {
     message: LocalMessage;
@@ -137,7 +137,7 @@ const MessageBubble = ({ message, isMine, currentUserId, showSeen, isSelected, o
                 {swipeX > 0 && (
                     <span
                         aria-hidden="true"
-                        className="pointer-events-none absolute top-1/2 -translate-y-1/2 -left-10 text-zinc-400"
+                        className="pointer-events-none absolute top-1/2 -translate-y-1/2 -left-4 text-zinc-400"
                         style={{ opacity: Math.min(swipeX / SWIPE_REPLY_PX, 1) }}
                     >
                         <FontAwesomeIcon icon={faReply} />
